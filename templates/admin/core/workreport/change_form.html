@@ -1,0 +1,134 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block form_top %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="ai-chat-container">
+            <div class="ai-chat-header">
+                <i class="fas fa-robot"></i> AI 智能填报助手 (Beta)
+                <span style="font-size: 0.8em; opacity: 0.8; margin-left: 10px;">
+                    输入工作内容，AI自动生成报告、摘要并分类。
+                </span>
+            </div>
+            
+            <div id="chat-messages" class="ai-chat-messages">
+                <div class="ai-message assistant">
+                    👋 你好！我是你的智能工作助理。
+                    <br>请告诉我你今天做了什么？例如：
+                    <br><em>"今天上午去拜访了张总，确认了A项目的需求，下午写了方案，明天准备发给客户。"</em>
+                </div>
+            </div>
+            
+            <div class="ai-input-area">
+                <textarea id="chat-input" rows="2" placeholder="在此输入工作内容... (支持多行, Enter换行, Ctrl+Enter发送)"></textarea>
+                <button type="button" id="btn-send" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> 生成
+                </button>
+            </div>
+            
+            <!-- Suggestions Area (Hidden by default) -->
+            <div id="ai-suggestions" style="display:none; padding: 10px 15px; background: #fff3cd; border-top: 1px solid #ffeeba;">
+                <strong>💡 下一步建议:</strong>
+                <ul id="next-steps-list" style="margin-bottom: 0; padding-left: 20px;"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatInput = document.getElementById('chat-input');
+    const btnSend = document.getElementById('btn-send');
+    const messagesContainer = document.getElementById('chat-messages');
+    const suggestionsBox = document.getElementById('ai-suggestions');
+    const nextStepsList = document.getElementById('next-steps-list');
+    
+    // Field References
+    const fieldContent = document.getElementById('id_content');
+    const fieldSummary = document.getElementById('id_ai_summary');
+    const fieldType = document.getElementById('id_type');
+    const fieldRaw = document.getElementById('id_ai_raw_input'); // If exists
+
+    function addMessage(text, sender) {
+        const div = document.createElement('div');
+        div.className = 'ai-message ' + sender;
+        div.innerHTML = text.replace(/\n/g, '<br>');
+        messagesContainer.appendChild(div);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    async function analyzeText(text) {
+        // Show loading
+        btnSend.disabled = true;
+        btnSend.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 分析中...';
+        
+        try {
+            const response = await fetch('/api/ai/analyze/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    text: text,
+                    mode: 'WORK_REPORT'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                addMessage('❌ 分析失败: ' + data.error, 'assistant');
+            } else {
+                // Success: Fill fields
+                if (data.content) {
+                    if (fieldContent) fieldContent.value = data.content;
+                }
+                if (data.ai_summary) {
+                    if (fieldSummary) fieldSummary.value = data.ai_summary;
+                }
+                if (data.report_type) {
+                    if (fieldType) fieldType.value = data.report_type;
+                }
+                if (fieldRaw) {
+                    fieldRaw.value = text; // Save raw input
+                }
+                
+                // Show suggestions
+                if (data.next_steps && data.next_steps.length > 0) {
+                    suggestionsBox.style.display = 'block';
+                    nextStepsList.innerHTML = data.next_steps.map(step => `<li>${step}</li>`).join('');
+                    
+                    addMessage('✅ 报告已生成！\n我也为你整理了一些下一步建议，请查看下方。', 'assistant');
+                } else {
+                    addMessage('✅ 报告已生成！请检查下方表单。', 'assistant');
+                }
+            }
+            
+        } catch (error) {
+            console.error(error);
+            addMessage('❌ 网络错误，请稍后重试。', 'assistant');
+        } finally {
+            btnSend.disabled = false;
+            btnSend.innerHTML = '<i class="fas fa-paper-plane"></i> 生成';
+        }
+    }
+
+    btnSend.addEventListener('click', function() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+        
+        addMessage(text, 'user');
+        chatInput.value = '';
+        analyzeText(text);
+    });
+    
+    chatInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && e.ctrlKey) {
+            btnSend.click();
+        }
+    });
+});
+</script>
+{% endblock %}

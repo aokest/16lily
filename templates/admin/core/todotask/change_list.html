@@ -1,0 +1,52 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+    <li>
+        <a href="#" class="btn btn-info btn-sm" data-toggle="modal" data-target="#aiTaskModal" style="margin-right: 5px;">
+            <i class="fas fa-magic mr-1"></i> AI 智能添加任务
+        </a>
+    </li>
+    {{ block.super }}
+{% endblock %}
+
+{% block footer %}
+    {{ block.super }}
+    <!-- AI Task Modal (Moved to footer to avoid z-index issues) -->
+    <div class="modal fade" id="aiTaskModal" tabindex="-1" role="dialog" aria-labelledby="aiTaskModalLabel" aria-hidden="true" style="z-index: 1050;">
+      <div class="modal-dialog modal-dialog-centered" role="document" style="z-index: 1051;">
+        <div class="modal-content">
+          <div class="modal-header bg-info">
+            <h5 class="modal-title text-white" id="aiTaskModalLabel"><i class="fas fa-robot mr-2"></i>AI 智能解析任务</h5>
+            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <form action="add-by-ai/" method="post">
+              {% csrf_token %}
+              <div class="modal-body">
+                <div class="form-group">
+                    <label for="raw_text">请输入自然语言指令：</label>
+                    <textarea class="form-control" id="raw_text" name="raw_text" rows="4" 
+                        placeholder="例如：下周三之前把年度财报发给王经理；或者：明天下午3点参加部门会议。"></textarea>
+                    <small class="form-text text-muted">系统将自动识别任务标题、截止时间和可能的指派对象，并跳转到创建页面供您确认。</small>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                <button type="submit" class="btn btn-primary">开始解析</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+        // Ensure modal backdrop doesn't cover the modal
+        document.addEventListener('DOMContentLoaded', function() {
+            $('#aiTaskModal').on('shown.bs.modal', function () {
+                $(this).appendTo(document.body);
+            });
+        });
+    </script>
+{% endblock %}

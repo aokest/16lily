@@ -1,0 +1,174 @@
+/* Custom Tooltips for Django Admin */
+
+/* The question mark icon */
+.custom-tooltip-icon {
+    display: inline-block;
+    margin-left: 8px;
+    color: #F54848; /* Pomegranate Red */
+    cursor: help;
+    font-size: 14px;
+    position: relative;
+    vertical-align: middle;
+}
+
+.custom-tooltip-icon:hover {
+    color: #C21807; /* Darker Red */
+}
+
+/* The Tooltip Popup */
+.custom-tooltip-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    
+    background-color: #333;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: pre-wrap; /* Allow wrapping */
+    min-width: 200px;
+    max-width: 300px;
+    text-align: left;
+    z-index: 1000;
+    
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    pointer-events: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    line-height: 1.4;
+}
+
+/* Arrow */
+.custom-tooltip-icon::before {
+    content: "";
+    position: absolute;
+    bottom: 115%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #333;
+    
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    z-index: 1000;
+}
+
+/* Show on hover */
+.custom-tooltip-icon:hover::after,
+.custom-tooltip-icon:hover::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Hide original help text */
+.original-help-text-hidden {
+    display: none !important;
+}
+
+/* DatePicker fix if needed */
+.vDateField {
+    min-width: 150px;
+}
+
+/* --- Fixes requested --- */
+
+/* Fix Admin Sidebar Overflow */
+.main-sidebar, .sidebar {
+    overflow-y: auto !important;
+    max-height: 100vh;
+}
+
+/* Fix Success Message Contrast */
+.alert-success, .bg-success {
+    color: #ffffff !important;
+    background-color: #28a745 !important;
+}
+.alert-success a, .bg-success a {
+    color: #ffffff !important; /* White text */
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+/* --- Pomegranate (Shiliu) Theme Overrides --- */
+
+/* Sidebar Brand / Logo Area */
+.brand-link {
+    background-color: #C21807 !important; /* Dark Pomegranate Red */
+    color: #fff !important;
+    border-bottom: 1px solid #e26b6b !important;
+}
+
+.brand-link .brand-text {
+    font-weight: bold;
+    position: relative;
+    padding-left: 5px;
+}
+
+/* Add Pomegranate Icon using CSS pseudo-element */
+/* 16 icon */
+.brand-link .brand-text::before {
+    content: "🍎"; /* Using an Emoji as a quick logo, or a 16 icon */
+    margin-right: 5px;
+    font-size: 1.2em;
+    vertical-align: middle;
+}
+/* If the user prefers "16" as a logo element */
+/*
+.brand-link .brand-text::before {
+    content: "16";
+    display: inline-block;
+    background: white;
+    color: #C21807;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    font-size: 14px;
+    margin-right: 8px;
+    font-weight: 900;
+}
+*/
+
+/* Sidebar Active Item Color */
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active,
+.sidebar-light-primary .nav-sidebar > .nav-item > .nav-link.active {
+    background-color: #F54848 !important; /* Pomegranate Red */
+    color: #fff !important;
+    border-left: 3px solid #fff;
+}
+
+/* Primary Buttons */
+.btn-primary {
+    background-color: #F54848 !important;
+    border-color: #F54848 !important;
+}
+.btn-primary:hover {
+    background-color: #d63030 !important;
+    border-color: #d63030 !important;
+}
+
+/* Info Buttons (often used for 'View') -> Orange/Gold */
+.btn-info {
+    background-color: #FFA07A !important; /* Light Salmon */
+    border-color: #FFA07A !important;
+    color: #fff !important;
+}
+
+/* Header/Navbar Accent */
+.main-header {
+    border-bottom: 3px solid #F54848 !important;
+}
+
+/* Links in Content */
+a {
+    color: #C21807;
+}
+a:hover {
+    color: #8a1004;
+}

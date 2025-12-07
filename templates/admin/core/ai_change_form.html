@@ -1,0 +1,301 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block form_top %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="ai-chat-container">
+            <div class="ai-chat-header" style="justify-content: space-between;">
+                <div style="display: flex; align-items: center;">
+                    <i class="fas fa-robot"></i> AI 智能填报助手 (Beta)
+                    <span style="font-size: 0.8em; opacity: 0.8; margin-left: 10px;">
+                        当前模式: {{ opts.verbose_name }} ({{ opts.model_name }})
+                    </span>
+                </div>
+                <!-- AI Model Selector -->
+                <div style="display: flex; align-items: center;">
+                    <span style="font-size: 0.8em; margin-right: 5px; color: #666;">模型:</span>
+                    <select id="ai-model-selector" class="form-control form-control-sm" style="width: auto; height: 28px; padding: 2px 5px; font-size: 0.85em;">
+                        {% for conf in ai_configs %}
+                        <option value="{{ conf.id }}" {% if conf.is_active %}selected{% endif %}>{{ conf.name }} ({{ conf.model_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div id="chat-messages" class="ai-chat-messages">
+                <div class="ai-message assistant">
+                    👋 你好！我是你的智能业务助理。
+                    <br>请描述你要录入的<strong>{{ opts.verbose_name }}</strong>信息，我会自动为你填写表单。
+                    {% if opts.model_name == 'opportunity' %}
+                    <br>例如：<em>"新增一个商机，客户是腾讯科技，预计金额500万，下个月签约..."</em>
+                    {% elif opts.model_name == 'workreport' %}
+                    <br>例如：<em>"今天上午去拜访了张总，确认了A项目的需求，下午写了方案..."</em>
+                    {% elif opts.model_name == 'todotask' %}
+                    <br>例如：<em>"下周五之前必须完成Q3季度的业绩复盘报告..."</em>
+                    {% elif opts.model_name == 'customer' %}
+                    <br>例如：<em>"录入一个新客户，名称是字节跳动，行业是互联网，规模很大..."</em>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="ai-input-area">
+                <textarea id="chat-input" rows="2" placeholder="在此输入描述... (支持多行, Enter换行, Ctrl+Enter发送)"></textarea>
+                <button type="button" id="btn-send" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> 生成
+                </button>
+            </div>
+            
+            <div style="padding: 5px 15px; background: #f8f9fa; border-top: 1px solid #eee; font-size: 0.8em; color: #666; display: flex; justify-content: space-between;">
+                 <span>
+                    <i class="fas fa-info-circle"></i> 提示: 如遇连接错误，请检查模型配置。
+                    {% if test_connection_url %}
+                    <a href="#" id="btn-quick-test-conn" style="margin-left: 10px; color: var(--pomegranate-primary);">测试连接</a>
+                    {% endif %}
+                 </span>
+            </div>
+
+            <!-- Suggestions Area (Hidden by default) -->
+            <div id="ai-suggestions" style="display:none; padding: 10px 15px; background: #fff3cd; border-top: 1px solid #ffeeba;">
+                <strong>💡 AI 建议:</strong>
+                <ul id="next-steps-list" style="margin-bottom: 0; padding-left: 20px;"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatInput = document.getElementById('chat-input');
+    const btnSend = document.getElementById('btn-send');
+    const messagesContainer = document.getElementById('chat-messages');
+    const suggestionsBox = document.getElementById('ai-suggestions');
+    const nextStepsList = document.getElementById('next-steps-list');
+    const modelSelector = document.getElementById('ai-model-selector');
+    
+    // Detect Model Type from Context
+    const modelName = '{{ opts.model_name|default:"" }}'; 
+    let aiMode = 'WORK_REPORT';
+    
+    // Explicit Mode Mapping
+    if (modelName === 'opportunity') aiMode = 'OPPORTUNITY';
+    else if (modelName === 'todotask') aiMode = 'TODO';
+    else if (modelName === 'competition') aiMode = 'COMPETITION';
+    else if (modelName === 'marketactivity') aiMode = 'MARKET_ACTIVITY';
+    else if (modelName === 'customer') aiMode = 'CUSTOMER';
+    else if (modelName === 'contact') aiMode = 'CONTACT';
+    
+    console.log("AI Mode Detected:", aiMode, "Model Name:", modelName);
+    
+    // Field Mapping Configuration
+    const fieldMapping = {
+        'workreport': {
+            'content': 'id_content',
+            'ai_summary': 'id_ai_summary',
+            'report_type': 'id_type'
+        },
+        'opportunity': {
+            'name': 'id_name',
+            'amount': 'id_amount',
+            'customer_name': 'id_customer_name', 
+            'customer': 'id_customer', // Select2
+            'sales_manager': 'id_sales_manager', // Select2
+            'stage': 'id_stage',
+            'expected_sign_date': 'id_expected_sign_date'
+        },
+        'todotask': {
+            'title': 'id_title',
+            'description': 'id_description',
+            'deadline': 'id_deadline',
+            'assignee': 'id_assignee' // Select2
+        },
+        'competition': {
+            'name': 'id_name',
+            'time': 'id_time', // Corrected from id_date to id_time based on Django default
+            'location': 'id_location',
+            'type': 'id_type'
+        },
+        'marketactivity': {
+            'name': 'id_name',
+            'time': 'id_time', // Corrected
+            'location': 'id_location',
+            'type': 'id_type'
+        },
+        'customer': {
+            'name': 'id_name',
+            'industry': 'id_industry',
+            'website': 'id_website'
+        },
+        'contact': {
+            'name': 'id_name',
+            'title': 'id_title',
+            'phone': 'id_phone',
+            'email': 'id_email'
+        }
+    };
+
+    function addMessage(text, sender) {
+        const div = document.createElement('div');
+        div.className = 'ai-message ' + sender;
+        div.innerHTML = text.replace(/\n/g, '<br>');
+        messagesContainer.appendChild(div);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function highlightField(element, success) {
+        if (!element) return;
+        const originalBorder = element.style.borderColor;
+        const originalShadow = element.style.boxShadow;
+        
+        if (success) {
+            element.style.borderColor = '#27ae60';
+            element.style.boxShadow = '0 0 5px rgba(39, 174, 96, 0.5)';
+        } else {
+            element.style.borderColor = '#e74c3c';
+            element.style.boxShadow = '0 0 5px rgba(231, 76, 60, 0.5)';
+        }
+        
+        setTimeout(() => {
+            element.style.borderColor = originalBorder;
+            element.style.boxShadow = originalShadow;
+        }, 2000);
+    }
+
+    async function analyzeText(text) {
+        // Show loading
+        btnSend.disabled = true;
+        btnSend.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 分析中...';
+        
+        // Get selected model ID
+        const selectedConfigId = modelSelector ? modelSelector.value : null;
+        
+        try {
+            const response = await fetch('/api/ai/analyze/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    text: text,
+                    mode: aiMode,
+                    config_id: selectedConfigId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                // Display Raw Error
+                let errorMsg = '❌ 分析失败: ' + data.error;
+                if (data.raw) {
+                    errorMsg += '<br><small>API Raw Output: ' + data.raw.substring(0, 200) + '...</small>';
+                    console.error("API Raw Output:", data.raw);
+                }
+                addMessage(errorMsg, 'assistant');
+            } else {
+                let filledCount = 0;
+                let missingFields = [];
+                
+                // Generic Filling Logic
+                const mapping = fieldMapping[modelName] || fieldMapping['workreport'];
+                
+                for (const [key, fieldId] of Object.entries(mapping)) {
+                    if (data[key]) {
+                        // Try to find exact match
+                        let field = document.getElementById(fieldId);
+                        
+                        // Handle Date fields (often have wrappers or different IDs in Admin)
+                        if (!field && (key.includes('time') || key.includes('date'))) {
+                             // Try simple date id 
+                             field = document.getElementById(fieldId.replace('id_', 'id_') + '_0'); // Date widget often splits date/time
+                        }
+                        
+                        if (field) {
+                            // If field is a SELECT (dropdown), we need special handling for Select2 or standard select
+                            if (field.tagName === 'SELECT') {
+                                // Check if option exists
+                                let optionExists = false;
+                                for (let i = 0; i < field.options.length; i++) {
+                                    if (field.options[i].value == data[key]) {
+                                        optionExists = true;
+                                        break;
+                                    }
+                                }
+                                
+                                if (optionExists) {
+                                    // Use jQuery to trigger change for Select2
+                                    if (typeof $ !== 'undefined') {
+                                        $(field).val(data[key]).trigger('change');
+                                    } else {
+                                        field.value = data[key];
+                                    }
+                                    highlightField(field.nextSibling, true); // Highlight Select2 container
+                                    filledCount++;
+                                } else {
+                                    // Option not found (e.g. Customer not created yet)
+                                    console.warn(`Option value ${data[key]} not found in select ${fieldId}`);
+                                    // If we have a text alternative (like customer_name), it might be filled separately
+                                }
+                            } else {
+                                // Standard Input
+                                field.value = data[key];
+                                highlightField(field, true);
+                                filledCount++;
+                            }
+                        } else {
+                            // Try to select for Dropdowns (Select2) that might have different ID structures
+                            // This is a fallback
+                        }
+                    } else {
+                        // Only mark as missing if it's NOT a secondary field
+                        // e.g. don't complain about customer_id if customer_name is filled
+                        if (key !== 'customer' && key !== 'sales_manager') {
+                             missingFields.push(key);
+                        }
+                    }
+                }
+                
+                // Show next steps if available
+                if (data.next_steps && data.next_steps.length > 0) {
+                    suggestionsBox.style.display = 'block';
+                    nextStepsList.innerHTML = data.next_steps.map(step => `<li>${step}</li>`).join('');
+                }
+                
+                let msg = `✅ 已为您填写 ${filledCount} 个字段。`;
+                if (missingFields.length > 0) {
+                    msg += `<br>⚠️ 以下信息未识别或暂不支持自动填充: ${missingFields.join(', ')}`;
+                }
+                addMessage(msg, 'assistant');
+            }
+            
+        } catch (error) {
+            console.error(error);
+            addMessage('❌ 网络错误，请检查服务状态。', 'assistant');
+        } finally {
+            btnSend.disabled = false;
+            btnSend.innerHTML = '<i class="fas fa-paper-plane"></i> 生成';
+        }
+    }
+
+    btnSend.addEventListener('click', function() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+        
+        addMessage(text, 'user');
+        chatInput.value = '';
+        analyzeText(text);
+    });
+    
+    chatInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && e.ctrlKey) {
+            btnSend.click();
+        }
+    });
+});
+</script>
+{% endblock %}

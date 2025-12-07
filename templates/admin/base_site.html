@@ -1,0 +1,262 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    /* Visual Grouping for Sidebar */
+    /* Increase specificity to ensure styles apply */
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/userprofile/"] {
+        margin-top: 15px !important;
+        border-top: 1px solid #4b545c !important;
+        padding-top: 25px !important; /* Space for the pseudo-element */
+        position: relative !important;
+    }
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/userprofile/"]::before {
+        content: "个人中心";
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        font-size: 12px;
+        color: #adb5bd;
+        padding: 4px 15px;
+        background-color: #343a40;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/workreport/"] {
+        margin-top: 15px !important;
+        border-top: 1px solid #4b545c !important;
+        padding-top: 25px !important;
+        position: relative !important;
+    }
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/workreport/"]::before {
+        content: "工作报告";
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        font-size: 12px;
+        color: #adb5bd;
+        padding: 4px 15px;
+        background-color: #343a40;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/opportunity/"] {
+        margin-top: 15px !important;
+        border-top: 1px solid #4b545c !important;
+        padding-top: 25px !important;
+        position: relative !important;
+    }
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/opportunity/"]::before {
+        content: "商机管理";
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        font-size: 12px;
+        color: #adb5bd;
+        padding: 4px 15px;
+        background-color: #343a40;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/marketactivity/"] {
+        margin-top: 15px !important;
+        border-top: 1px solid #4b545c !important;
+        padding-top: 25px !important;
+        position: relative !important;
+    }
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/marketactivity/"]::before {
+        content: "市场活动";
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        font-size: 12px;
+        color: #adb5bd;
+        padding: 4px 15px;
+        background-color: #343a40;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/competition/"] {
+        margin-top: 15px !important;
+        border-top: 1px solid #4b545c !important;
+        padding-top: 25px !important;
+        position: relative !important;
+    }
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/competition/"]::before {
+        content: "赛事管理";
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        font-size: 12px;
+        color: #adb5bd;
+        padding: 4px 15px;
+        background-color: #343a40;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/customer/"] {
+        margin-top: 15px !important;
+        border-top: 1px solid #4b545c !important;
+        padding-top: 25px !important;
+        position: relative !important;
+    }
+    .main-sidebar .nav-sidebar > .nav-item > a.nav-link[href*="/core/customer/"]::before {
+        content: "客户关系";
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        font-size: 12px;
+        color: #adb5bd;
+        padding: 4px 15px;
+        background-color: #343a40;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* Fix Timeline Style - Force Override with !important */
+    .timeline {
+        margin: 0 0 30px 0 !important;
+        padding: 10px !important;
+        position: relative !important;
+        max-height: 400px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        border: 1px solid #eee !important;
+        border-radius: 5px !important;
+        background: #fff !important;
+    }
+    .timeline > li, .timeline > div {
+        margin-right: 0 !important;
+        margin-bottom: 15px !important;
+        position: relative !important;
+    }
+    .timeline > li > .timeline-item, .timeline > div > .timeline-item {
+        margin-left: 50px !important;
+        margin-right: 0 !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,.1) !important;
+        border-radius: 3px !important;
+        background: #fff !important;
+        color: #444 !important;
+        padding: 0 !important;
+        position: relative !important;
+        border: 1px solid #f0f0f0 !important;
+    }
+    .timeline > li > .timeline-item > .timeline-header, .timeline > div > .timeline-item > .timeline-header {
+        margin: 0 !important;
+        color: #555 !important;
+        border-bottom: 1px solid #f4f4f4 !important;
+        padding: 8px 10px !important;
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+    }
+    .timeline > li > .timeline-item > .timeline-header > a, .timeline > div > .timeline-item > .timeline-header > a {
+        font-weight: 600 !important;
+    }
+    .timeline > li > .timeline-item > .timeline-body, .timeline > div > .timeline-item > .timeline-body {
+        padding: 8px 10px !important;
+        font-size: 12px !important;
+        color: #666 !important;
+    }
+    .timeline > li > .fa, .timeline > li > .fas, .timeline > li > .far, .timeline > li > .fab,
+    .timeline > div > .fa, .timeline > div > .fas, .timeline > div > .far, .timeline > div > .fab {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 14px !important;
+        line-height: 30px !important;
+        position: absolute !important;
+        color: #666 !important;
+        background: #d2d6de !important;
+        border-radius: 50% !important;
+        text-align: center !important;
+        left: 10px !important; /* Adjusted left position */
+        top: 0 !important;
+        z-index: 10 !important;
+    }
+    
+    /* Rename Dashboard Title in Content */
+    /* Using JS to replace the text because it might be hardcoded in templates */
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Force Rename Dashboard to Personal Center
+        function renameDashboard() {
+            // 1. Sidebar
+            const sidebarLink = document.querySelector('a.nav-link[href="/admin/"] p');
+            if (sidebarLink) {
+                 // Replace text content but keep icon (usually i tag)
+                 let hasIcon = sidebarLink.querySelector('i');
+                 if (hasIcon) {
+                     // Text is usually after the icon
+                     // Let's rebuild it
+                     sidebarLink.innerHTML = '<i class="nav-icon fas fa-tachometer-alt"></i> 个人中心';
+                 } else {
+                     sidebarLink.textContent = '个人中心';
+                 }
+            }
+            
+            // 2. Breadcrumbs
+            const breadcrumb = document.querySelector('.breadcrumb-item.active');
+            if (breadcrumb && (breadcrumb.innerText.includes('仪表盘') || breadcrumb.innerText.includes('Dashboard'))) {
+                breadcrumb.innerText = '个人中心';
+            }
+            
+            // 3. Content Header
+            const header = document.querySelector('.content-header h1');
+            if (header && (header.innerText.includes('仪表盘') || header.innerText.includes('Dashboard'))) {
+                header.innerText = '个人中心';
+            }
+            
+            // 4. Window Title
+            if (document.title.includes('仪表盘')) {
+                document.title = document.title.replace('仪表盘', '个人中心');
+            }
+        }
+        
+        // Run immediately and after a short delay to catch dynamic changes
+        renameDashboard();
+        setTimeout(renameDashboard, 500);
+    });
+</script>
+{% endblock %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+{% endblock %}
+
+{% block nav-global %}
+<ul class="navbar-nav ml-auto">
+    <li class="nav-item"><a class="nav-link" href="/admin/core/competition/kanban/" target="_blank"><i class="fas fa-trophy"></i> 赛事看板</a></li>
+    <li class="nav-item"><a class="nav-link" href="/admin/core/marketactivity/kanban/" target="_blank"><i class="fas fa-bullhorn"></i> 市场活动看板</a></li>
+    <li class="nav-item"><a class="nav-link" href="/api/dashboard/screen/" target="_blank"><i class="fas fa-tv"></i> 经营数据大屏</a></li>
+    <li class="nav-item"><a class="nav-link" href="http://127.0.0.1:8080/" target="_blank"><i class="fas fa-gamepad"></i> 十六军团战报</a></li>
+    <li class="nav-item"><a class="nav-link" href="http://127.0.0.1:8080/competitions.html" target="_blank"><i class="fas fa-trophy"></i> 赛事大屏</a></li>
+    <li class="nav-item"><a class="nav-link" href="http://127.0.0.1:8080/activities.html" target="_blank"><i class="fas fa-bullhorn"></i> 活动大屏</a></li>
+</ul>
+{% endblock %}

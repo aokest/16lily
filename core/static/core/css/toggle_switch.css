@@ -1,0 +1,42 @@
+/* Toggle Switch for "Is Active" Checkbox */
+/* Apply to list_editable checkboxes in td.field-is_active */
+
+td.field-is_active input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: #bdc3c7;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.3s;
+    vertical-align: middle;
+    outline: none;
+}
+
+td.field-is_active input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+td.field-is_active input[type="checkbox"]:checked {
+    background: var(--pomegranate-primary); /* Red when active */
+}
+
+td.field-is_active input[type="checkbox"]:checked::after {
+    transform: translateX(18px);
+}
+
+/* Hover effect */
+td.field-is_active input[type="checkbox"]:hover {
+    opacity: 0.9;
+}

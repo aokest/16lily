@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>赛事大屏 · 春秋GAME</title>
+    <script src="./lib/tailwindcss.js"></script>
+    <script src="./lib/vue.global.js"></script>
+    <script src="./lib/echarts.min.js"></script>
+    <script src="./lib/axios.min.js"></script>
+    <style>
+        body { background:#0f172a; color:#e2e8f0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+        .card { background: rgba(30,41,59,.7); border: 1px solid rgba(59,130,246,.3); border-radius:.5rem; box-shadow: 0 0 15px rgba(0,0,0,.3); }
+        [v-cloak]{opacity:0}
+    </style>
+ </head>
+ <body>
+   <div id="app" v-cloak class="p-4 md:p-6 space-y-4">
+     <header class="flex justify-between items-center card p-4">
+       <h1 class="text-3xl font-black tracking-tight">赛事大屏 · 春秋GAME</h1>
+       <div class="text-right">
+         <div class="text-sm text-slate-400">SYSTEM ONLINE</div>
+         <div class="font-mono text-xl text-blue-400">{{ now }}</div>
+       </div>
+     </header>
+     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+       <div class="card p-4 lg:col-span-2">
+         <h3 class="text-lg font-bold mb-3">本月赛事安排</h3>
+         <div id="calendarChart" style="height: 420px"></div>
+       </div>
+       <div class="card p-4">
+         <h3 class="text-lg font-bold mb-3">关键指标</h3>
+         <div class="space-y-3">
+            <div class="flex justify-between"><span>本月赛事数</span><span class="font-mono">{{ kpi.month_count }}</span></div>
+            <div class="flex justify-between"><span>进行中</span><span class="font-mono text-amber-400">{{ kpi.pending }}</span></div>
+            <div class="flex justify-between"><span>已发布/完成</span><span class="font-mono text-green-400">{{ kpi.approved }}</span></div>
+         </div>
+       </div>
+     </div>
+     <div class="card p-4">
+       <h3 class="text-lg font-bold mb-3">实时看板 · 滚动播报</h3>
+       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+         <div v-for="c in rolling" :key="c.id" class="p-3 border border-slate-700 rounded">
+             <div class="font-bold text-white">
+               {{ c.name }}
+               <span class="text-xs ml-2 px-2 py-0.5 rounded bg-slate-700 text-slate-300">{{ c.type || '-' }}</span>
+             </div>
+             <div class="text-sm text-slate-400 mt-1">
+               <span>时间：{{ formatDate(c.time) }}</span> · <span>地点：{{ c.location || '-' }}</span>
+             </div>
+             <div class="text-xs text-slate-500 mt-1">负责人：{{ c.owner_name || '-' }} · 部门：{{ c.department_name || '-' }}</div>
+         </div>
+       </div>
+     </div>
+   </div>
+   <script>
+     const { createApp, ref, onMounted } = Vue;
+     createApp({
+       setup(){
+         const now = ref('');
+         const data = ref([]);
+         const kpi = ref({ month_count:0, pending:0, approved:0 });
+         const rolling = ref([]);
+         let calendarChart = null;
+
+         const API_BASE = `http://${window.location.hostname}:8000`;
+         const authHeader = { 'Authorization': 'Basic ' + btoa('admin:admin123456') };
+         const formatDate = (str)=>{ if(!str) return '未定'; try{ return new Date(str).toLocaleDateString('zh-CN'); }catch(e){ return str; } };
+
+         const refreshTime = ()=>{ const d=new Date(); now.value = d.toLocaleTimeString('en-GB'); };
+
+         const loadData = async ()=>{
+           const res = await axios.get(`${API_BASE}/api/competitions/`, { headers: authHeader });
+           data.value = res.data || [];
+           // KPI
+           const today = new Date(); const m = today.getMonth(); const y = today.getFullYear();
+           kpi.value.month_count = data.value.filter(c=>{ if(!c.time) return false; const d=new Date(c.time); return d.getMonth()===m && d.getFullYear()===y; }).length;
+           kpi.value.pending = data.value.filter(c=>c.status==='PENDING').length;
+           kpi.value.approved = data.value.filter(c=>c.status==='APPROVED').length;
+           rolling.value = data.value.slice(0, 9);
+           updateCalendar();
+         };
+
+         const updateCalendar = ()=>{
+           if(!calendarChart){ calendarChart = echarts.init(document.getElementById('calendarChart')); }
+           const seriesData = data.value.map(c=>({ name: c.name, value: [c.time || '', 1] }));
+           calendarChart.setOption({
+             tooltip:{trigger:'item'},
+             calendar:[{ range: new Date().getFullYear(), left: 20, right: 20, top: 30, bottom: 20, cellSize: [20,20], splitLine:{show:false}, itemStyle:{color:'#0b1220', borderColor:'#1f2937'} }],
+             series:[{ type:'heatmap', coordinateSystem:'calendar', data: seriesData }]
+           });
+         };
+
+         onMounted(()=>{
+           refreshTime(); setInterval(refreshTime, 1000);
+           loadData(); setInterval(loadData, 15000);
+           window.addEventListener('resize', ()=>{ calendarChart && calendarChart.resize(); });
+         });
+
+         return { now, kpi, rolling, formatDate };
+       }
+     }).mount('#app');
+   </script>
+ </body>
+ </html>

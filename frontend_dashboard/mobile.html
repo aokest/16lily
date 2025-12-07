@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>商机助手 (Mobile)</title>
+    <script src="./lib/tailwindcss.js"></script>
+    <script src="./lib/vue.global.js"></script>
+    <script src="./lib/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .safe-area-top {
+            padding-top: env(safe-area-inset-top);
+        }
+        .card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body>
+    <div id="app" v-cloak class="min-h-screen flex flex-col pb-20">
+        <!-- 顶部导航 -->
+        <header class="bg-blue-600 text-white pt-12 pb-6 px-6 rounded-b-[2rem] shadow-lg relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+            <div class="relative z-10 flex justify-between items-center mb-6">
+                <div>
+                    <div class="text-blue-100 text-sm mb-1">{{ currentDate }}</div>
+                    <h1 class="text-2xl font-bold">早安, {{ userInfo.username || 'User' }}</h1>
+                </div>
+                <div class="flex gap-2">
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm" @click="logout">
+                        <i class="fas fa-sign-out-alt text-white"></i>
+                    </div>
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                        <i class="fas fa-bell text-white"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 核心数据卡片 -->
+            <div class="flex justify-between items-end">
+                <div>
+                    <div class="text-blue-100 text-xs mb-1">本季完成 (Actual)</div>
+                    <div class="text-3xl font-bold">¥ {{ formatNumber(stats.performance?.actual) }}</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-blue-100 text-xs mb-1">目标完成率</div>
+                    <div class="text-2xl font-bold">{{ (stats.performance?.completion_rate || 0).toFixed(0) }}%</div>
+                </div>
+            </div>
+            
+            <!-- 进度条 -->
+            <div class="mt-4 w-full bg-blue-800/50 h-1.5 rounded-full overflow-hidden">
+                <div class="h-full bg-white/90 rounded-full" :style="{ width: (stats.performance?.completion_rate || 0) + '%' }"></div>
+            </div>
+        </header>
+
+        <!-- 功能菜单 -->
+        <div class="px-6 -mt-6 relative z-10">
+            <div class="card p-4 flex justify-between items-center">
+                <div class="flex flex-col items-center gap-2" @click="showToast('功能开发中...')">
+                    <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                        <i class="fas fa-briefcase text-xl"></i>
+                    </div>
+                    <span class="text-xs font-medium text-slate-600">我的商机</span>
+                </div>
+                <div class="flex flex-col items-center gap-2" @click="showToast('功能开发中...')">
+                    <div class="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600">
+                        <i class="fas fa-users text-xl"></i>
+                    </div>
+                    <span class="text-xs font-medium text-slate-600">团队日报</span>
+                </div>
+                <div class="flex flex-col items-center gap-2" @click="showToast('功能开发中...')">
+                    <div class="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
+                        <i class="fas fa-chart-pie text-xl"></i>
+                    </div>
+                    <span class="text-xs font-medium text-slate-600">数据报表</span>
+                </div>
+                <div class="flex flex-col items-center gap-2" @click="showToast('功能开发中...')">
+                    <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
+                        <i class="fas fa-plus text-xl"></i>
+                    </div>
+                    <span class="text-xs font-medium text-slate-600">新建</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最新动态列表 -->
+        <div class="px-6 mt-6 flex-1">
+            <h3 class="font-bold text-lg mb-4 text-slate-800">最新动态</h3>
+            <div class="space-y-3">
+                <div v-for="log in activities" :key="log.id" class="card p-4 flex gap-3 items-start border-l-4"
+                    :class="getBorderColor(log.action)">
+                    <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">
+                        {{ log.operator_name.substring(0,1).toUpperCase() }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-start mb-1">
+                            <div class="font-bold text-sm text-slate-800 truncate">{{ log.opportunity_name || '未知商机' }}</div>
+                            <div class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{{ formatTime(log.created_at) }}</div>
+                        </div>
+                        <div class="text-xs text-slate-500 line-clamp-2">
+                            <span class="font-medium" :class="getTextColor(log.action)">{{ log.action }}</span> 
+                            {{ log.content }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div v-if="activities.length === 0" class="py-10 text-center text-slate-400 text-sm">
+                    暂无动态
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部 TabBar -->
+        <nav class="fixed bottom-0 w-full bg-white border-t border-slate-100 pb-safe px-6 py-3 flex justify-between items-center z-50">
+            <div class="flex flex-col items-center gap-1 text-blue-600">
+                <i class="fas fa-home text-xl"></i>
+                <span class="text-[10px] font-medium">首页</span>
+            </div>
+            <div class="flex flex-col items-center gap-1 text-slate-400">
+                <i class="fas fa-compass text-xl"></i>
+                <span class="text-[10px] font-medium">发现</span>
+            </div>
+            <div class="w-12 h-12 bg-blue-600 rounded-full -mt-8 flex items-center justify-center shadow-lg shadow-blue-600/30 text-white">
+                <i class="fas fa-microphone"></i>
+            </div>
+            <div class="flex flex-col items-center gap-1 text-slate-400">
+                <i class="fas fa-comment-dots text-xl"></i>
+                <span class="text-[10px] font-medium">消息</span>
+            </div>
+            <div class="flex flex-col items-center gap-1 text-slate-400">
+                <i class="fas fa-user text-xl"></i>
+                <span class="text-[10px] font-medium">我的</span>
+            </div>
+        </nav>
+
+        <!-- Toast -->
+        <div v-if="toast.show" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-800/90 text-white px-4 py-2 rounded-lg text-sm shadow-xl z-50 transition-opacity">
+            {{ toast.message }}
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const stats = ref({});
+                const activities = ref([]);
+                const currentDate = ref('');
+                const toast = ref({ show: false, message: '' });
+                const userInfo = ref({});
+
+                const formatNumber = (num) => {
+                    if (!num) return '0';
+                    return Number(num).toLocaleString();
+                };
+
+                const formatTime = (timeStr) => {
+                    const date = new Date(timeStr);
+                    const now = new Date();
+                    if (date.toDateString() === now.toDateString()) {
+                        return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                    }
+                    return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+                };
+
+                const showToast = (msg) => {
+                    toast.value = { show: true, message: msg };
+                    setTimeout(() => toast.value.show = false, 2000);
+                };
+
+                const getBorderColor = (action) => {
+                    if (action.includes('赢单') || action.includes('创建')) return 'border-green-500';
+                    if (action.includes('输单')) return 'border-red-500';
+                    return 'border-blue-500';
+                };
+
+                const getTextColor = (action) => {
+                    if (action.includes('赢单') || action.includes('创建')) return 'text-green-600';
+                    if (action.includes('输单')) return 'text-red-600';
+                    return 'text-blue-600';
+                };
+
+                const logout = () => {
+                    if(confirm('确定要退出登录吗？')) {
+                        localStorage.removeItem('auth_token');
+                        localStorage.removeItem('user_info');
+                        window.location.href = 'login.html';
+                    }
+                };
+
+                // 安全地获取 hostname
+                const getApiBase = () => {
+                    try {
+                        return `http://${window.location.hostname}:8000`;
+                    } catch (e) {
+                        return 'http://127.0.0.1:8000';
+                    }
+                };
+
+                const fetchData = async () => {
+                    try {
+                        const token = localStorage.getItem('auth_token');
+                        if (!token) {
+                            window.location.href = 'login.html';
+                            return;
+                        }
+
+                        const authHeader = { 'Authorization': `Token ${token}` };
+                        const API_BASE = getApiBase();
+                        
+                        // Stats
+                        const response = await axios.get(`${API_BASE}/api/dashboard/stats/`, { headers: authHeader });
+                        stats.value = response.data;
+
+                        // Activities
+                        const logsRes = await axios.get(`${API_BASE}/api/dashboard/activities/`, { headers: authHeader });
+                        activities.value = logsRes.data;
+                    } catch (error) {
+                        console.error('Failed to fetch data:', error);
+                        if (error.response && error.response.status === 401) {
+                            showToast('登录已过期，请重新登录');
+                            setTimeout(() => window.location.href = 'login.html', 1500);
+                        }
+                    }
+                };
+
+                onMounted(() => {
+                    // 检查登录
+                    const storedUser = localStorage.getItem('user_info');
+                    if (!storedUser) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    userInfo.value = JSON.parse(storedUser);
+
+                    const now = new Date();
+                    currentDate.value = now.toLocaleDateString('zh-CN', { weekday: 'long', month: 'long', day: 'numeric' });
+                    fetchData();
+                });
+
+                return {
+                    stats,
+                    activities,
+                    currentDate,
+                    toast,
+                    userInfo,
+                    formatNumber,
+                    formatTime,
+                    showToast,
+                    getBorderColor,
+                    getTextColor,
+                    logout
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

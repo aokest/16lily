@@ -1,0 +1,47 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block content %}
+<div class="card card-primary">
+    <div class="card-header">
+        <h3 class="card-title">批量导入赛事信息</h3>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="card-body">
+            <div class="form-group">
+                <label for="excel_file">选择Excel文件 (.xlsx, .xls)</label>
+                <div class="input-group">
+                    <div class="custom-file">
+                        <input type="file" class="custom-file-input" id="excel_file" name="excel_file" accept=".xlsx, .xls">
+                        <label class="custom-file-label" for="excel_file">点击选择文件</label>
+                    </div>
+                </div>
+                <small class="form-text text-muted">
+                    请上传符合标准表头的Excel文件。系统将根据“比赛名称”自动匹配：<br>
+                    1. 如果比赛名称已存在，将更新该记录。<br>
+                    2. 如果不存在，将创建新记录。
+                </small>
+            </div>
+            
+            <div class="alert alert-info alert-dismissible">
+                <h5><i class="icon fas fa-info"></i> 支持的表头字段</h5>
+                状态, 开始时间, 结束时间, 比赛名称, 立项名称/实训项目名称, 项目编号, 类型, 活动地点, 对接人, 负责人, 部门, 比赛时长, 队伍数量, 领队人数, 实际总人数, 题目数量, 题目类型, 赛事/影响力热度, 级别, 面向对象, 主办类型, 组织机构, 备注
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary">开始导入</button>
+            <a href="../" class="btn btn-default float-right">返回列表</a>
+        </div>
+    </form>
+</div>
+
+<script>
+// Custom file input label
+document.querySelector('.custom-file-input').addEventListener('change', function(e){
+    var fileName = document.getElementById("excel_file").files[0].name;
+    var nextSibling = e.target.nextElementSibling
+    nextSibling.innerText = fileName
+})
+</script>
+{% endblock %}

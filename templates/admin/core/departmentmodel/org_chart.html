@@ -1,0 +1,152 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<style>
+    /* Force full width for org chart container */
+    .content-wrapper > .content {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    .container-fluid {
+        padding: 15px !important;
+        max-width: 100% !important;
+    }
+    /* Override card constraints */
+    .org-chart-card {
+        width: 100% !important;
+        margin: 0 !important;
+        border-radius: 0;
+        box-shadow: none;
+        border-top: none;
+    }
+    #org-chart-container {
+        width: 100% !important;
+        min-height: 850px;
+    }
+</style>
+
+<div class="card card-primary card-outline org-chart-card">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-sitemap mr-2"></i>组织架构全景图</h3>
+        <div class="card-tools">
+             <a href="../" class="btn btn-sm btn-default">返回列表</a>
+        </div>
+    </div>
+    <div class="card-body" style="background-color: #f8f9fa; padding: 0;">
+        <div id="org-chart-container"></div>
+    </div>
+</div>
+
+<!-- ECharts -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var chartDom = document.getElementById('org-chart-container');
+        var myChart = echarts.init(chartDom);
+        var option;
+
+        // Data passed from view
+        var data = {{ chart_data|safe }};
+
+        option = {
+            tooltip: {
+                trigger: 'item',
+                triggerOn: 'mousemove',
+                formatter: function (params) {
+                    var node = params.data;
+                    var html = '<div style="padding:5px; color: #333;">';
+                    html += '<strong style="color:#c0392b; font-size:1.1em;">' + node.name + '</strong><br/>';
+                    if (node.manager) html += '👤 负责人: ' + node.manager + '<br/>';
+                    if (node.count) html += '👥 人数: ' + node.count + '人<br/>';
+                    html += '</div>';
+                    return html;
+                },
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                borderColor: '#c0392b',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#333'
+                }
+            },
+            series: [
+                {
+                    type: 'tree',
+                    data: [data],
+                    top: '2%',
+                    left: '5%',
+                    bottom: '2%',
+                    right: '5%', // Decreased right padding to use more space
+                    symbol: 'emptyCircle',
+                    symbolSize: 15,
+                    
+                    // Enable zooming and panning
+                    roam: true,
+                    
+                    itemStyle: {
+                        color: '#c0392b', // Pomegranate Red (Updated)
+                        borderColor: '#c0392b'
+                    },
+                    
+                    label: {
+                        position: 'left',
+                        verticalAlign: 'middle',
+                        align: 'right',
+                        fontSize: 15,
+                        color: '#333',
+                        backgroundColor: '#fff',
+                        padding: [4, 8],
+                        borderRadius: 4,
+                        borderColor: '#ccc',
+                        borderWidth: 1,
+                        formatter: function(params) {
+                            var name = params.name;
+                            if (params.data.manager) {
+                                return '{name|' + name + '}\n{manager|👤 ' + params.data.manager + '}';
+                            }
+                            return '{name|' + name + '}';
+                        },
+                        rich: {
+                            name: {
+                                fontSize: 15,
+                                fontWeight: 'bold',
+                                color: '#333',
+                                padding: [0, 0, 5, 0]
+                            },
+                            manager: {
+                                fontSize: 12,
+                                color: '#666'
+                            }
+                        }
+                    },
+                    
+                    leaves: {
+                        label: {
+                            position: 'right',
+                            verticalAlign: 'middle',
+                            align: 'left'
+                        }
+                    },
+                    
+                    lineStyle: {
+                        color: '#ccc',
+                        width: 2,
+                        curveness: 0.5
+                    },
+                    
+                    expandAndCollapse: true,
+                    animationDuration: 550,
+                    animationDurationUpdate: 750,
+                    initialTreeDepth: 5
+                }
+            ]
+        };
+
+        option && myChart.setOption(option);
+        
+        window.addEventListener('resize', function() {
+            myChart.resize();
+        });
+    });
+</script>
+{% endblock %}

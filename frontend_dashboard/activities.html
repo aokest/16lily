@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>市场活动大屏 · 集团市场部</title>
+    <script src="./lib/tailwindcss.js"></script>
+    <script src="./lib/vue.global.js"></script>
+    <script src="./lib/echarts.min.js"></script>
+    <script src="./lib/axios.min.js"></script>
+    <style>
+        body { background:#0f172a; color:#e2e8f0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+        .card { background: rgba(30,41,59,.7); border: 1px solid rgba(59,130,246,.3); border-radius:.5rem; box-shadow: 0 0 15px rgba(0,0,0,.3); }
+        [v-cloak]{opacity:0}
+    </style>
+ </head>
+ <body>
+   <div id="app" v-cloak class="p-4 md:p-6 space-y-4">
+     <header class="flex justify-between items-center card p-4">
+       <h1 class="text-3xl font-black tracking-tight">市场活动大屏 · 集团市场部</h1>
+       <div class="text-right">
+         <div class="text-sm text-slate-400">SYSTEM ONLINE</div>
+         <div class="font-mono text-xl text-blue-400">{{ now }}</div>
+       </div>
+     </header>
+     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+       <div class="card p-4 lg:col-span-2">
+         <h3 class="text-lg font-bold mb-3">类型分布</h3>
+         <div id="pieChart" style="height: 420px"></div>
+       </div>
+       <div class="card p-4">
+         <h3 class="text-lg font-bold mb-3">关键指标</h3>
+         <div class="space-y-3">
+            <div class="flex justify-between"><span>本月活动数</span><span class="font-mono">{{ kpi.month_count }}</span></div>
+            <div class="flex justify-between"><span>进行中</span><span class="font-mono text-amber-400">{{ kpi.pending }}</span></div>
+            <div class="flex justify-between"><span>已发布/完成</span><span class="font-mono text-green-400">{{ kpi.approved }}</span></div>
+         </div>
+       </div>
+     </div>
+     <div class="card p-4">
+       <h3 class="text-lg font-bold mb-3">实时看板 · 滚动播报</h3>
+       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+         <div v-for="a in rolling" :key="a.id" class="p-3 border border-slate-700 rounded">
+             <div class="font-bold text-white">
+               {{ a.name }}
+               <span class="text-xs ml-2 px-2 py-0.5 rounded bg-slate-700 text-slate-300">{{ a.type || '-' }}</span>
+             </div>
+             <div class="text-sm text-slate-400 mt-1">
+               <span>时间：{{ formatDate(a.time) }}</span> · <span>地点：{{ a.location || '-' }}</span>
+             </div>
+             <div class="text-xs text-slate-500 mt-1">规模：{{ a.scale || '-' }}</div>
+         </div>
+       </div>
+     </div>
+   </div>
+   <script>
+     const { createApp, ref, onMounted } = Vue;
+     createApp({
+       setup(){
+         const now = ref('');
+         const data = ref([]);
+         const kpi = ref({ month_count:0, pending:0, approved:0 });
+         const rolling = ref([]);
+         let pieChart = null;
+
+         const API_BASE = `http://${window.location.hostname}:8000`;
+         const authHeader = { 'Authorization': 'Basic ' + btoa('admin:admin123456') };
+         const formatDate = (str)=>{ if(!str) return '未定'; try{ return new Date(str).toLocaleDateString('zh-CN'); }catch(e){ return str; } };
+
+         const refreshTime = ()=>{ const d=new Date(); now.value = d.toLocaleTimeString('en-GB'); };
+
+         const loadData = async ()=>{
+           const res = await axios.get(`${API_BASE}/api/activities/`, { headers: authHeader });
+           data.value = res.data || [];
+           // KPI
+           const today = new Date(); const m = today.getMonth(); const y = today.getFullYear();
+           kpi.value.month_count = data.value.filter(a=>{ if(!a.time) return false; const d=new Date(a.time); return d.getMonth()===m && d.getFullYear()===y; }).length;
+           kpi.value.pending = data.value.filter(a=>a.status==='PENDING').length;
+           kpi.value.approved = data.value.filter(a=>a.status==='APPROVED').length;
+           rolling.value = data.value.slice(0, 9);
+           updatePie();
+         };
+
+         const updatePie = ()=>{
+           if(!pieChart){ pieChart = echarts.init(document.getElementById('pieChart')); }
+           const groups = {};
+           for(const a of data.value){ const k = a.type || '其他'; groups[k] = (groups[k]||0)+1; }
+           const seriesData = Object.entries(groups).map(([name,val])=>({ name, value: val }));
+           pieChart.setOption({
+             tooltip:{trigger:'item'},
+             series:[{ type:'pie', radius:['40%','70%'], avoidLabelOverlap:false, itemStyle:{ borderRadius:8 }, label:{ show:true, formatter:'{b}: {c}' }, data: seriesData }]
+           });
+         };
+
+         onMounted(()=>{
+           refreshTime(); setInterval(refreshTime, 1000);
+           loadData(); setInterval(loadData, 15000);
+           window.addEventListener('resize', ()=>{ pieChart && pieChart.resize(); });
+         });
+
+         return { now, kpi, rolling, formatDate };
+       }
+     }).mount('#app');
+   </script>
+ </body>
+ </html>

@@ -1,0 +1,27 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block object-tools %}
+    <div style="float: right; margin-bottom: 10px;">
+        {% if prev_url %}
+            <a href="{{ prev_url }}" class="btn btn-info" style="margin-right: 5px; background-color: #f0ad4e; border: none; color: white; padding: 5px 15px; border-radius: 4px; text-decoration: none;">
+                <i class="fas fa-chevron-left"></i> 上一条
+            </a>
+        {% else %}
+            <span class="btn btn-secondary disabled" style="margin-right: 5px; background-color: #ddd; color: #888; padding: 5px 15px; border-radius: 4px; cursor: not-allowed;">
+                <i class="fas fa-chevron-left"></i> 上一条
+            </span>
+        {% endif %}
+
+        {% if next_url %}
+            <a href="{{ next_url }}" class="btn btn-info" style="background-color: #f0ad4e; border: none; color: white; padding: 5px 15px; border-radius: 4px; text-decoration: none;">
+                下一条 <i class="fas fa-chevron-right"></i>
+            </a>
+        {% else %}
+            <span class="btn btn-secondary disabled" style="background-color: #ddd; color: #888; padding: 5px 15px; border-radius: 4px; cursor: not-allowed;">
+                下一条 <i class="fas fa-chevron-right"></i>
+            </span>
+        {% endif %}
+    </div>
+    {{ block.super }}
+{% endblock %}
