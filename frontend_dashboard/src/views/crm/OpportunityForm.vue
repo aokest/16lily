@@ -71,25 +71,59 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                  <!-- In a real app, this should be a user search/select -->
-                  <!-- For now we rely on backend to assign creator/manager or use logged in user -->
-                  <!-- We can display a readonly field if editing -->
+                <el-form-item label="赢单概率(%)" prop="win_rate">
+                    <el-slider v-model="form.win_rate" show-input />
+                </el-form-item>
+              </el-col>
+          </el-row>
+
+          <el-row :gutter="20">
+              <el-col :span="12">
+                  <el-form-item label="商机来源" prop="source">
+                      <el-input v-model="form.source" placeholder="例如：老客户推荐" />
+                  </el-form-item>
+              </el-col>
+              <el-col :span="12">
                   <el-form-item label="负责销售" v-if="isEdit">
                       <el-input v-model="form.sales_manager_name" disabled />
                   </el-form-item>
               </el-col>
           </el-row>
 
-          <!-- AI Input (Optional) -->
-          <div class="mt-8 mb-4 p-4 bg-blue-50 rounded border border-blue-100" v-if="!isEdit">
-              <h4 class="text-sm font-bold text-blue-800 mb-2">✨ AI 智能录入</h4>
+          <!-- AI & Description Combined -->
+          <h3 class="text-lg font-bold text-slate-800 mb-6 pb-2 border-b mt-6">商机详情 & AI 智能填充</h3>
+          
+          <div class="bg-blue-50 p-6 rounded-lg border border-blue-100 mb-6">
+              <div class="flex justify-between items-center mb-2">
+                  <label class="text-sm font-bold text-blue-800 flex items-center gap-2">
+                      ✨ 商机描述 / AI 指令
+                      <el-tooltip content="在此输入商机详情，点击右下角按钮，AI将自动提取关键信息填充到上方表单" placement="top">
+                          <el-icon><InfoFilled /></el-icon>
+                      </el-tooltip>
+                  </label>
+                  <el-button type="primary" size="small" @click="handleAIParse" :loading="aiLoading" icon="MagicStick">
+                      AI 智能识别
+                  </el-button>
+              </div>
               <el-input 
                 v-model="form.ai_raw_text" 
                 type="textarea" 
-                :rows="3" 
-                placeholder="粘贴一段文字（例如：九号电动车商机，15万，销售员付磊），AI将自动解析填单" 
+                :rows="6" 
+                placeholder="在此描述商机详情，例如：
+歌者文明公司，42万，销售员卡拉米，做数字清洁服务。
+目前处于需求分析阶段，预计下个月签约。
+竞争对手有三体科技，赢单率大概80%。" 
               />
           </div>
+
+          <!-- Extended Info (Hidden if empty and not expanded? No, keep visible for manual edit) -->
+          <el-row :gutter="20">
+              <el-col :span="24">
+                  <el-form-item label="竞争对手" prop="competitors">
+                      <el-input v-model="form.competitors" placeholder="多个对手请用逗号分隔" />
+                  </el-form-item>
+              </el-col>
+          </el-row>
 
         </el-form>
       </div>
@@ -107,6 +141,7 @@ const route = useRoute();
 const router = useRouter();
 const formRef = ref();
 const loading = ref(false);
+const aiLoading = ref(false);
 
 const id = route.params.id;
 const isEdit = computed(() => !!id);
@@ -118,7 +153,11 @@ const form = ref({
     stage: 'CONTACT',
     expected_sign_date: '',
     ai_raw_text: '',
-    sales_manager_name: ''
+    sales_manager_name: '',
+    win_rate: 0,
+    source: '',
+    description: '',
+    competitors: ''
 });
 
 const rules = {
@@ -137,42 +176,72 @@ const fetchData = async () => {
     }
 };
 
+const handleAIParse = async () => {
+    if (!form.value.ai_raw_text) {
+        ElMessage.warning('请先输入需要识别的文字内容');
+        return;
+    }
+    aiLoading.value = true;
+    try {
+        const res = await api.post('ai/analyze/', {
+            text: form.value.ai_raw_text,
+            mode: 'OPPORTUNITY'
+        });
+        
+        const data = res.data;
+        if (data.error) {
+            ElMessage.error('AI识别失败: ' + data.error);
+        } else {
+            // Auto fill form
+            form.value.name = data.name || form.value.name;
+            form.value.amount = data.amount || form.value.amount;
+            form.value.customer_company = data.customer_name || form.value.customer_company;
+            form.value.stage = data.stage || form.value.stage;
+            form.value.expected_sign_date = data.expected_sign_date || form.value.expected_sign_date;
+            
+            // Try to fill extended fields if AI returned them (Needs backend prompt update to support new fields)
+            // Use ai_raw_text as description if description is empty
+            if (data.description) {
+                form.value.description = data.description;
+            } else if (!form.value.description) {
+                // If AI didn't return specific description, use the raw input as description
+                form.value.description = form.value.ai_raw_text; 
+            }
+            
+            if (data.win_rate) form.value.win_rate = data.win_rate;
+            if (data.competitors) form.value.competitors = data.competitors;
+            if (data.source) form.value.source = data.source;
+            
+            ElMessage.success('AI 识别成功，请核对信息');
+        }
+    } catch (e) {
+        ElMessage.error('AI 服务请求失败');
+        console.error(e);
+    } finally {
+        aiLoading.value = false;
+    }
+};
+
 const handleSubmit = async () => {
     if (!formRef.value) return;
     await formRef.value.validate(async (valid: boolean) => {
         if (valid) {
             loading.value = true;
             try {
-                // If AI text is present, backend signal will handle parsing if name is generic
-                // But frontend form values take precedence if user manually typed them.
-                // The current backend logic (signals.py) triggers AI parsing if 'ai_raw_text' is set AND name is 'New Opportunity' etc.
-                // So if user fills the form, standard save works.
-                
-                // We need to ensure we send the ID of logged in user as creator/sales_manager if new
-                // But DRF usually handles request.user.
-                // Let's rely on backend defaults.
+                // Prepare payload
+                const payload = { ...form.value };
+                // Ensure customer_name is set for legacy compatibility
+                if (!payload.customer_name) payload.customer_name = payload.customer_company;
 
                 if (isEdit.value) {
-                    await api.patch(`opportunities/${id}/`, form.value);
+                    await api.patch(`opportunities/${id}/`, payload);
                     ElMessage.success('更新成功');
                 } else {
-                    // Manually inject default values for mandatory fields if missing
-                    // Since frontend form requires them, they should be present.
-                    // But 'sales_manager' is required by model, default to self (request.user)
-                    // The ViewSet logic sets creator=request.user
-                    // But we might need to set sales_manager explicitly if model doesn't default it.
-                    // Let's check model... sales_manager is ForeignKey(User).
-                    // We'll let backend handle it or fail. Ideally backend should auto-set sales_manager=creator if not provided.
-                    
-                    // Actually, let's inject a dummy sales_manager_id if we can, or rely on backend.
-                    // Reading OpportunityViewSet logic: perform_create sets creator.
-                    // It doesn't set sales_manager. We should add that logic to backend or here.
-                    // For now, let's try submitting. If 400, we fix backend.
-                    await api.post('opportunities/', {
-                        ...form.value,
-                        // Default fields to pass model validation if backend is strict
-                        customer_name: form.value.customer_company, // legacy field
-                    });
+                    // Inject description from AI text if not set
+                    if (!payload.description && payload.ai_raw_text) {
+                        payload.description = payload.ai_raw_text;
+                    }
+                    await api.post('opportunities/', payload);
                     ElMessage.success('创建成功');
                 }
                 router.push('/crm/opportunities');

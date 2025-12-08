@@ -20,6 +20,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('api-token-auth/', auth_views.obtain_auth_token), # Login endpoint
     path('auth/wechat/login/', WeChatLoginView.as_view(), name='wechat-login'),
+    path('ai/analyze/', AIAnalysisView.as_view(), name='ai-analyze'), # AI Endpoint
     path('auth/me/', MeView.as_view(), name='me'),
     # AI Analysis Endpoint
     # Changed from 'api/ai/analyze/' to 'ai/analyze/' because this file is included under 'api/'

@@ -550,6 +550,12 @@ class Opportunity(models.Model):
     # 团队成员 (多对多) - 保留用于简单关联，详细信息使用 OpportunityTeamMember
     team_members = models.ManyToManyField(User, related_name='participated_opportunities', blank=True, verbose_name='参与团队成员(简单)')
 
+    # 丰富化字段 (Enrichment)
+    description = models.TextField(blank=True, verbose_name='商机描述/备注', help_text='商机背景、需求详情等')
+    win_rate = models.IntegerField(default=0, verbose_name='赢单概率(%)', help_text='0-100之间')
+    competitors = models.CharField(max_length=255, blank=True, verbose_name='竞争对手', help_text='多个对手用逗号分隔')
+    source = models.CharField(max_length=100, blank=True, verbose_name='商机来源', help_text='如：老客户推荐, 市场活动, 招标公告等')
+
     # AI 预备字段
     ai_raw_text = models.TextField(blank=True, verbose_name='原始信息(AI解析)', help_text='在此粘贴大段商机介绍，后续通过AI自动提取')
 
