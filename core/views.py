@@ -8,8 +8,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from datetime import timedelta
-from .models import Opportunity, PerformanceTarget, UserProfile, JobRole, OpportunityLog, Department, TodoTask, Announcement, SocialMediaStats, Competition, MarketActivity
-from .serializers import OpportunitySerializer, PerformanceTargetSerializer, OpportunityLogSerializer, UserSerializer, CompetitionSerializer, MarketActivitySerializer
+from .models import Opportunity, PerformanceTarget, UserProfile, JobRole, OpportunityLog, Department, TodoTask, Announcement, SocialMediaStats, Competition, MarketActivity, Customer
+from .serializers import OpportunitySerializer, PerformanceTargetSerializer, OpportunityLogSerializer, UserSerializer, CompetitionSerializer, MarketActivitySerializer, CustomerSerializer
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from .models import Competition, MarketActivity, ApprovalStatus
@@ -138,6 +138,16 @@ class PerformanceTargetViewSet(viewsets.ModelViewSet):
     queryset = PerformanceTarget.objects.all()
     serializer_class = PerformanceTargetSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all().order_by('-created_at')
+    serializer_class = CustomerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['status', 'industry', 'scale']
+    search_fields = ['name', 'customer_code', 'legal_representative']
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
 class CompetitionViewSet(viewsets.ModelViewSet):
     queryset = Competition.objects.all().order_by('-created_at')

@@ -202,14 +202,14 @@ class AIService:
         # Or better: check if DB template has 'customer_phone', if not, update it.
         
         template = PromptTemplate.objects.filter(scene=PromptTemplate.Scene.OPPORTUNITY, is_active=True).order_by('-updated_at').first()
-         if template:
-             if 'customer_code' not in template.template:
-                 # Old template detected, update it
-                 print("DEBUG: Updating outdated Opportunity Prompt Template...")
-                 template.template = default_prompt
-                 template.save()
-             prompt = template.template
-         else:
+        if template:
+            if 'customer_code' not in template.template:
+                # Old template detected, update it
+                print("DEBUG: Updating outdated Opportunity Prompt Template...")
+                template.template = default_prompt
+                template.save()
+            prompt = template.template
+        else:
             # Create if missing
             PromptTemplate.objects.create(
                 name="Standard Opportunity Prompt V2",

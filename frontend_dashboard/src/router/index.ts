@@ -3,6 +3,8 @@ import Dashboard from '../views/Dashboard.vue';
 import Login from '../views/Login.vue';
 import OpportunityList from '../views/crm/OpportunityList.vue';
 import OpportunityForm from '../views/crm/OpportunityForm.vue';
+import CustomerList from '../views/crm/CustomerList.vue';
+import CustomerForm from '../views/crm/CustomerForm.vue';
 
 const routes = [
     {
@@ -31,6 +33,24 @@ const routes = [
         path: '/crm/opportunities/:id/edit',
         name: 'OpportunityEdit',
         component: OpportunityForm,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/crm/customers',
+        name: 'CustomerList',
+        component: CustomerList,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/crm/customers/create',
+        name: 'CustomerCreate',
+        component: CustomerForm,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/crm/customers/:id/edit',
+        name: 'CustomerEdit',
+        component: CustomerForm,
         meta: { requiresAuth: true }
     }
 ];

@@ -1,6 +1,20 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import UserProfile, Opportunity, OpportunityLog, PerformanceTarget, Competition, MarketActivity
+from .models import UserProfile, Opportunity, OpportunityLog, PerformanceTarget, Competition, MarketActivity, Customer
+
+class CustomerSerializer(serializers.ModelSerializer):
+    owner_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Customer
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_owner_name(self, obj):
+        if not obj.owner:
+            return "Unknown"
+        name = f"{obj.owner.last_name}{obj.owner.first_name}".strip()
+        return name if name else obj.owner.username
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:

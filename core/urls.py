@@ -3,12 +3,13 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     OpportunityViewSet, PerformanceTargetViewSet, DashboardViewSet, 
     WeChatLoginView, MeView, competition_kanban_page, marketactivity_kanban_page, 
-    CompetitionViewSet, MarketActivityViewSet, AIAnalysisView
+    CompetitionViewSet, MarketActivityViewSet, AIAnalysisView, CustomerViewSet
 )
 from django.views.generic import TemplateView
 
 router = DefaultRouter()
 router.register(r'opportunities', OpportunityViewSet)
+router.register(r'customers', CustomerViewSet)
 router.register(r'targets', PerformanceTargetViewSet)
 router.register(r'competitions', CompetitionViewSet)
 router.register(r'activities', MarketActivityViewSet)
