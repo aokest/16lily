@@ -14,8 +14,11 @@ router.register(r'competitions', CompetitionViewSet)
 router.register(r'activities', MarketActivityViewSet)
 router.register(r'dashboard', DashboardViewSet, basename='dashboard')
 
+from rest_framework.authtoken import views as auth_views
+
 urlpatterns = [
     path('', include(router.urls)),
+    path('api-token-auth/', auth_views.obtain_auth_token), # Login endpoint
     path('auth/wechat/login/', WeChatLoginView.as_view(), name='wechat-login'),
     path('auth/me/', MeView.as_view(), name='me'),
     # AI Analysis Endpoint

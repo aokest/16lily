@@ -1,24 +1,27 @@
 # 🚀 未来开发蓝图 (Project Roadmap)
 
-> **版本**: 2025-12-07 Updated
-> **状态**: 规划中
+> **版本**: 2025-12-09 Updated
+> **状态**: 执行中 (In Progress)
 
-本文档详细列出了系统未来的演进方向，涵盖了用户体验、技术架构、业务扩展及安全保障等多个维度。
+本文档详细列出了系统未来的演进方向，核心任务是**逐步替换老旧的 Django Admin (Jazzmin)**，构建现代化的前后端分离应用。
 
 ---
 
-## 📅 Phase 3: 现代化前端重构 (Frontend Modernization)
+## 📅 Phase 3: 现代化前端重构 (Frontend Modernization) [DOING]
 **核心目标**: 彻底摆脱 Jazzmin/Django Admin 的 UI 限制，打造**前后端分离**的现代化应用，提升交互体验 (UI/UED)。
+**策略**: 采用 "双轨制" (Dual Track) —— 保持后端 Django API 不变，逐步将业务模块从 Admin 迁移至 Vue 3 Dashboard，最终只保留 Admin 给运维人员使用。
 
 ### 1. 架构升级
-- [ ] **后端 (Backend)**:
-    - 引入 `Django REST Framework (DRF)` 构建标准的 RESTful API。
-    - 实现基于 JWT (JSON Web Token) 的无状态认证机制。
-    - 编写 Swagger/OpenAPI 文档，规范接口定义。
-- [ ] **前端 (Frontend)**:
-    - **技术栈**: Vue 3 + Vite + Pinia + TypeScript。
-    - **UI 组件库**: Ant Design Vue 或 Arco Design (更适合中后台)。
-    - **布局**: 采用响应式布局，支持深色模式 (Dark Mode)。
+- [x] **后端 (Backend)**:
+    - [x] 修复根路径 404 问题，增加默认跳转至 Admin。
+    - [x] 引入 `Django REST Framework (DRF)` 构建标准的 RESTful API。
+    - [ ] **Auth**: 实现基于 JWT 或 Session 的标准登录接口，废除硬编码 Token。
+    - [ ] **Swagger**: 编写 Swagger/OpenAPI 文档，规范接口定义。
+- [x] **前端 (Frontend)**:
+    - [x] **初始化**: 创建 Vue 3 + Vite + TypeScript 项目 (`frontend_dashboard`)。
+    - [x] **依赖**: 安装 Element Plus, Tailwind CSS v4, Axios, Sass。
+    - [x] **环境**: 配置 Vite Proxy 解决跨域，Docker 化部署。
+    - [ ] **CRM 模块**: 移植商机管理 (List/Edit/Detail) 到 Vue。
 
 ### 2. 体验优化 (UI/UED)
 - [ ] **仪表盘 (Dashboard)**: 可拖拽的自定义看板，支持多维度数据筛选与钻取。

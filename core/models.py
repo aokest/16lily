@@ -641,6 +641,10 @@ class OpportunityLog(models.Model):
     action = models.CharField(max_length=50, verbose_name='动作')
     content = models.TextField(verbose_name='跟进内容/备注')
     stage_snapshot = models.CharField(max_length=20, blank=True, null=True, verbose_name='当时阶段')
+    
+    # 新增：关联移交申请 (当action为'商机移交'时使用)
+    transfer_target = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfer_logs', verbose_name='移交给谁')
+    
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='记录时间')
 
     def __str__(self):
@@ -685,3 +689,6 @@ class PerformanceTarget(models.Model):
         verbose_name = '业绩目标'
         verbose_name_plural = '业绩目标'
         unique_together = ['year', 'quarter', 'department', 'user']
+
+# --- Import new models ---
+from .models_transfer import OpportunityTransferApplication

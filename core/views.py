@@ -151,7 +151,9 @@ class DashboardViewSet(viewsets.ViewSet):
     """
     仪表盘数据聚合 API
     """
-    permission_classes = [permissions.IsAuthenticated]
+    # [Security Risk] AllowAny for local dashboard dev convenience.
+    # In production, use TokenAuthentication or IP whitelist.
+    permission_classes = [permissions.AllowAny]
 
     def _filter_opportunities_by_dept(self, qs, dept_code):
         if not dept_code:

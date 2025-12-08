@@ -9,8 +9,7 @@
 本项目拥有完善的文档体系，请根据您的角色选择阅读入口：
 
 ### 👨‍💻 开发人员 / 接手者 (Developers)
-- **👉 [AI 接手指南 (AI Handover)](docs/AI_HANDOVER.md)**: **AI 助手必读！** 包含最新的环境启动、Git 维护与 AI 模块调试指南。
-- **👉 [交接指南 (Handover Guide)](docs/HANDOVER.md)**: 人类开发者必读。环境搭建、代码地图、避坑指南。
+- **👉 [开发指南 (Development Guide)](docs/DEVELOPMENT.md)**: **必读！** 环境搭建、代码地图、AI 模块维护与 Git 规范。
 - **🤖 [AI 协作指南 (AI Copilot Guide)](docs/AI_COLLABORATION_GUIDE.md)**: 教你如何与 Trae/AI 高效协作。
 - **🛠 [技术架构 (Technical Docs)](docs/TECHNICAL_DOCS.md)**: 深入了解架构设计、API 规范。
 - **🗺 [项目全景 (Project Guide)](docs/PROJECT_GUIDE.md)**: 详细的文件目录说明与开发规范。

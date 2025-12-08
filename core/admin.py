@@ -325,16 +325,57 @@ class AIEnabledAdminMixin:
         context['ai_configs'] = list(configs)
         context['ai_configs_json'] = json.dumps(list(configs))
 
+@admin.action(description='发起移交申请')
+def apply_for_transfer(modeladmin, request, queryset):
+    # This action redirects to a custom form or simply creates draft applications
+    # For simplicity in Django Admin, we can redirect to the add page of OpportunityTransferApplication
+    # pre-filled with the first selected opportunity.
+    # But supporting bulk transfer application is complex UI wise.
+    
+    # Alternative: Create a "Draft" transfer application for each selected opp and redirect user to edit them?
+    # Better approach per user request: "填表单"
+    
+    # We will just create a pending transfer task in TodoTask for the manager, 
+    # OR we assume this action is clicked by the sales rep.
+    
+    from django.urls import reverse
+    from django.utils.http import urlencode
+    from django.shortcuts import redirect
+    
+    if queryset.count() > 1:
+        modeladmin.message_user(request, "一次只能移交一个商机，请只选择一个。", level='ERROR')
+        return
+
+    opp = queryset.first()
+    
+    # Redirect to the add page of OpportunityTransferApplication
+    url = reverse('admin:core_opportunitytransferapplication_add')
+    params = {
+        'opportunity': opp.id,
+        'current_owner': opp.sales_manager.id,
+        'applicant': request.user.id
+    }
+    return redirect(f"{url}?{urlencode(params)}")
+
 @admin.register(Opportunity)
 class OpportunityAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
     form = OpportunityForm
-    list_display = ('name', 'customer_company', 'get_sales_manager_name', 'stage_display', 'status_display', 'approval_status', 'amount', 'is_confirmed_by_sales')
-    list_filter = ('stage', 'status', 'approval_status', 'sales_manager', 'is_confirmed_by_sales', 'customer')
+    list_display = ('name', 'customer_company', 'get_sales_manager_name', 'stage_display', 'status_display', 'approval_status', 'amount', 'created_at', 'is_confirmed_by_sales')
+    list_filter = (
+        'sales_manager', 
+        'customer', 
+        ('created_at', admin.DateFieldListFilter), # Filter by Time
+        'amount', # Simple filter for exact amount, usually needs custom range filter but default is ok for now
+        'stage', # "Deliverables" often implied by stage
+        'status', 
+        'approval_status', 
+        'is_confirmed_by_sales'
+    )
     search_fields = ('name', 'customer_name', 'customer_company', 'customer__name')
     inlines = [OpportunityTeamMemberInline, OpportunityLogInline]
     filter_horizontal = ('team_members',)
     autocomplete_fields = ['customer']
-    actions = [approve_opportunity, export_as_csv]
+    actions = [approve_opportunity, apply_for_transfer, export_as_csv]
 
     def get_sales_manager_name(self, obj):
         if obj.sales_manager:
@@ -390,14 +431,151 @@ def export_logs_csv(modeladmin, request, queryset):
 @admin.register(OpportunityLog)
 class OpportunityLogAdmin(admin.ModelAdmin):
     list_display = ('opportunity', 'get_operator_name', 'action', 'created_at')
-    list_filter = ('action',)
+    list_filter = (
+        'action', 
+        'opportunity__sales_manager', 
+        'opportunity__customer', 
+        ('created_at', admin.DateFieldListFilter),
+    )
+    search_fields = ('opportunity__name', 'operator__username', 'content')
     actions = [export_logs_csv]
+    
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        formfield = super().formfield_for_dbfield(db_field, **kwargs)
+        if db_field.name == 'action':
+            # Create a datalist widget
+            # We use TextInput but add the 'list' attribute
+            # Then we need to inject the datalist into the form/template
+            formfield.widget = forms.TextInput(attrs={'list': 'action_list', 'placeholder': '选择或输入...'})
+        return formfield
 
     def get_operator_name(self, obj):
         if obj.operator:
             return f"{obj.operator.last_name}{obj.operator.first_name}" or obj.operator.username
         return "-"
     get_operator_name.short_description = '操作人'
+
+    class Media:
+        # We can inject a script to append the datalist to the body or use a template override.
+        # But a simpler way for Django Admin is to use format_html in a readonly field or 
+        # just rely on the fact that if we use a change_form_template we can add it.
+        # Let's try to inject it via a small JS file or inline script if possible.
+        # Since we can't easily add inline HTML to the form without a template, 
+        # we will use a custom widget that renders the datalist.
+        pass
+
+# Define a custom widget to render the datalist
+class DatalistWidget(forms.TextInput):
+    def render(self, name, value, attrs=None, renderer=None):
+        text_input = super().render(name, value, attrs, renderer)
+        datalist = """
+        <datalist id="action_list">
+            <option value="初步接触">
+            <option value="需求沟通">
+            <option value="方案汇报">
+            <option value="商务谈判">
+            <option value="招投标">
+            <option value="合同签署">
+            <option value="商机移交">
+            <option value="输单/放弃">
+            <option value="其他">
+        </datalist>
+        """
+        return format_html(text_input + datalist)
+
+# Re-register with custom widget logic
+admin.site.unregister(OpportunityLog) # Unregister first to avoid AlreadyRegistered error
+
+# 定义显式的 Form 类
+class OpportunityLogForm(forms.ModelForm):
+    # 定义常用动作选项
+    ACTIONS = [
+        ('', '请选择...'),
+        ('初步接触', '初步接触'),
+        ('需求沟通', '需求沟通'),
+        ('方案汇报', '方案汇报'),
+        ('商务谈判', '商务谈判'),
+        ('招投标', '招投标'),
+        ('合同签署', '合同签署'),
+        ('商机移交', '商机移交'),
+        ('输单/放弃', '输单/放弃'),
+        ('其他', '其他 (手动输入)'),
+    ]
+    
+    # 覆盖模型字段 widget
+    action_select = forms.ChoiceField(
+        choices=ACTIONS, 
+        label='动作选择', 
+        required=False,
+        widget=forms.Select(attrs={'class': 'action-select', 'onchange': 'toggleActionFields(this)'})
+    )
+    
+    # 实际的模型字段，设为 hidden 或 text (取决于是否为 '其他')
+    # 为了简化，我们让 action 字段在 UI 上作为 "其他动作输入框" 显示
+    # 当 select 选了具体值时，JS 自动填入 action 并隐藏 action 框
+    # 当 select 选了 '其他' 时，JS 显示 action 框供用户输入
+    
+    class Meta:
+        model = OpportunityLog
+        fields = '__all__'
+        widgets = {
+            'action': forms.TextInput(attrs={'class': 'action-input', 'placeholder': '请输入自定义动作'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 初始化时，如果 instance.action 在选项里，则设置 select，否则设为 '其他'
+        if self.instance and self.instance.pk:
+            action_val = self.instance.action
+            # 检查是否在预定义列表里
+            known_actions = [c[0] for c in self.ACTIONS if c[0]]
+            if action_val in known_actions:
+                self.fields['action_select'].initial = action_val
+            else:
+                self.fields['action_select'].initial = '其他'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        action_select = cleaned_data.get('action_select')
+        action_input = cleaned_data.get('action')
+        
+        if action_select and action_select != '其他':
+            # 如果选了常用项，强制使用选项值
+            cleaned_data['action'] = action_select
+        else:
+            # 如果选了其他或没选，必须有手动输入
+            if not action_input:
+                self.add_error('action', '请选择动作或手动输入动作内容')
+        
+        return cleaned_data
+
+@admin.register(OpportunityLog)
+class OpportunityLogAdmin(admin.ModelAdmin):
+    form = OpportunityLogForm
+    list_display = ('opportunity', 'get_operator_name', 'action', 'created_at')
+    list_filter = (
+        'action', 
+        'opportunity__sales_manager', 
+        'opportunity__customer', 
+        ('created_at', admin.DateFieldListFilter),
+    )
+    search_fields = ('opportunity__name', 'operator__username', 'content')
+    actions = [export_logs_csv]
+    
+    # 调整字段顺序，把 action_select 放在 action 之前
+    fields = ('opportunity', 'operator', 'action_select', 'action', 'content', 'stage_snapshot', 'transfer_target')
+    
+    def get_operator_name(self, obj):
+        if obj.operator:
+            return f"{obj.operator.last_name}{obj.operator.first_name}" or obj.operator.username
+        return "-"
+    get_operator_name.short_description = '操作人'
+
+    class Media:
+        js = ('admin/js/opportunity_log.js',) # 引入自定义 JS
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
 
 @admin.register(PerformanceTarget)
 class PerformanceTargetAdmin(admin.ModelAdmin):
@@ -546,3 +724,100 @@ class WorkReportAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
 class SocialMediaStatsAdmin(admin.ModelAdmin):
     list_display = ('platform', 'fans_count', 'record_date')
     list_filter = ('platform', 'record_date')
+
+# --- Transfer Application Admin ---
+from .models_transfer import OpportunityTransferApplication
+
+@admin.action(description='批准转移申请')
+def approve_transfer(modeladmin, request, queryset):
+    for application in queryset.filter(status=ApprovalStatus.PENDING):
+        # 1. Update Opportunity Owner
+        opp = application.opportunity
+        old_owner = opp.sales_manager
+        opp.sales_manager = application.target_owner
+        opp.save()
+        
+        # 2. Log it
+        OpportunityLog.objects.create(
+            opportunity=opp,
+            operator=request.user,
+            action='TRANSFER',
+            content=f"商机负责人变更: {old_owner} -> {application.target_owner} (原因: {application.reason})",
+            stage_snapshot=opp.stage
+        )
+        
+        # 3. Update Application Status
+        application.status = ApprovalStatus.APPROVED
+        application.approver = request.user
+        application.approval_note = "管理员批量批准"
+        application.save()
+        
+    modeladmin.message_user(request, f"已批准 {queryset.count()} 个转移申请")
+
+@admin.register(OpportunityTransferApplication)
+class OpportunityTransferApplicationAdmin(admin.ModelAdmin):
+    list_display = ('opportunity', 'applicant', 'current_owner', 'target_owner', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('opportunity__name', 'applicant__username')
+    actions = [approve_transfer]
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(models.Q(applicant=request.user) | models.Q(target_owner=request.user) | models.Q(current_owner=request.user))
+
+# 隐藏商机移交申请的直接入口，将其作为内联操作或通过Action触发
+admin.site.unregister(OpportunityTransferApplication)
+
+@admin.register(OpportunityTransferApplication)
+class OpportunityTransferApplicationHiddenAdmin(admin.ModelAdmin):
+    # This admin class is registered but hidden from index via has_module_permission
+    # It handles the actual logic when accessed directly or via inlines
+    list_display = ('opportunity', 'applicant', 'current_owner', 'target_owner', 'status', 'created_at')
+    # Remove 'status' from list_filter to simplify, keep 'created_at'
+    list_filter = ('created_at',) 
+    search_fields = ('opportunity__name', 'applicant__username')
+    # Remove approve_transfer action from here as user said "审批信息应该在待办事项里"
+    # But we still need a way to approve. We will keep it but hide status field from form.
+    actions = [approve_transfer]
+    
+    exclude = ('status', 'approver', 'approval_note') # Hide approval fields from creation form
+
+    def has_module_permission(self, request):
+        return False
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(models.Q(applicant=request.user) | models.Q(target_owner=request.user) | models.Q(current_owner=request.user))
+        
+    def save_model(self, request, obj, form, change):
+        if not change: # Creating new application
+            obj.applicant = request.user
+            obj.current_owner = obj.opportunity.sales_manager
+            obj.status = ApprovalStatus.PENDING
+            
+            # Create a TodoTask for the Approver (Department Manager or Admin)
+            # Logic: Find manager. For now, assign to Superuser/Admin or specific manager logic
+            # Simplified: Assign to current_owner's reports_to, else admin
+            
+            manager = None
+            if hasattr(obj.current_owner, 'profile') and obj.current_owner.profile.reports_to:
+                manager = obj.current_owner.profile.reports_to.user
+            
+            if not manager:
+                # Fallback to first superuser
+                manager = User.objects.filter(is_superuser=True).first()
+            
+            if manager:
+                TodoTask.objects.create(
+                    title=f"商机移交审批: {obj.opportunity.name}",
+                    description=f"申请人: {obj.applicant.username}\n移交原因: {obj.reason}\n目标负责人: {obj.target_owner.username}",
+                    source_type=TodoTask.SourceType.WORKFLOW, # Corrected
+                    assignee=manager,
+                    content_object=obj
+                )
+                
+        super().save_model(request, obj, form, change)

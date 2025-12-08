@@ -1,10 +1,12 @@
 from django.db import models
 from django.dispatch import receiver
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from .models import (
     Opportunity, TodoTask, WorkReport, Competition, MarketActivity, Customer, Contact,
-    DepartmentModel, Department
+    DepartmentModel, Department, OpportunityLog, ApprovalStatus
 )
+from .models_transfer import OpportunityTransferApplication
+from django.contrib.auth.models import User
 from .services.ai_service import AIService
 import datetime
 
@@ -183,3 +185,41 @@ def process_contact_ai(sender, instance, **kwargs):
                 cust = Customer.objects.filter(name__icontains=data.get('customer_name')).first()
                 if cust:
                     instance.customer = cust
+
+@receiver(post_save, sender=OpportunityLog)
+def process_opportunity_transfer(sender, instance, created, **kwargs):
+    """
+    处理商机移交逻辑：当创建了一条动作为'商机移交'的跟进记录时，自动发起移交审批流程
+    """
+    if created and instance.action == '商机移交' and instance.transfer_target:
+        # 1. 创建移交申请
+        application = OpportunityTransferApplication.objects.create(
+            opportunity=instance.opportunity,
+            applicant=instance.operator,
+            current_owner=instance.opportunity.sales_manager,
+            target_owner=instance.transfer_target,
+            reason=instance.content or "通过跟进记录发起的移交",
+            status=ApprovalStatus.PENDING
+        )
+        
+        # 2. 查找审批人 (直属上级 > 超级管理员)
+        manager = None
+        current_owner = instance.opportunity.sales_manager
+        
+        # 尝试获取直属上级
+        if hasattr(current_owner, 'profile') and current_owner.profile.reports_to:
+            manager = current_owner.profile.reports_to.user
+            
+        # 兜底：超级管理员
+        if not manager:
+            manager = User.objects.filter(is_superuser=True).first()
+            
+        # 3. 创建待办事项
+        if manager:
+            TodoTask.objects.create(
+                title=f"商机移交审批: {instance.opportunity.name}",
+                description=f"来源: 跟进记录\n申请人: {instance.operator.username}\n目标负责人: {instance.transfer_target.username}\n原因: {application.reason}",
+                source_type=TodoTask.SourceType.WORKFLOW,
+                assignee=manager,
+                content_object=application
+            )
