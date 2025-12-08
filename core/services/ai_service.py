@@ -172,6 +172,8 @@ class AIService:
         - amount: Estimated amount (number only, e.g. 150000).
         - customer_name: Customer company name (in Simplified Chinese).
         - customer_contact_name: Contact person name.
+        - customer_phone: Contact phone number.
+        - customer_email: Contact email.
         - sales_manager_name: Sales person name (e.g. "付磊").
         - project_manager_name: Project manager name (e.g. "张三").
         - expected_sign_date: YYYY-MM-DD.
@@ -193,7 +195,29 @@ class AIService:
         Input: "九号电动车商机，15万，销售员付磊"
         Output: {"name": "九号电动车-商机", "amount": 150000, "customer_name": "九号电动车", "sales_manager_name": "付磊", "expected_sign_date": "2025-12-31", "stage": "CONTACT"}
         """
-        prompt = self._get_prompt(PromptTemplate.Scene.OPPORTUNITY, default_prompt)
+        # Ensure we use the latest prompt even if DB has an old one (Logic override for dev)
+        # But properly we should update the DB.
+        # Let's force update the DB template if it's too old or doesn't have new keys.
+        # Or better: check if DB template has 'customer_phone', if not, update it.
+        
+        template = PromptTemplate.objects.filter(scene=PromptTemplate.Scene.OPPORTUNITY, is_active=True).order_by('-updated_at').first()
+        if template:
+            if 'customer_phone' not in template.template:
+                # Old template detected, update it
+                print("DEBUG: Updating outdated Opportunity Prompt Template...")
+                template.template = default_prompt
+                template.save()
+            prompt = template.template
+        else:
+            # Create if missing
+            PromptTemplate.objects.create(
+                name="Standard Opportunity Prompt V2",
+                scene=PromptTemplate.Scene.OPPORTUNITY,
+                template=default_prompt,
+                is_active=True
+            )
+            prompt = default_prompt
+
         prompt += f"\nCurrent Date: {timezone.now().strftime('%Y-%m-%d')}"
         
         data = self._call_llm_json(prompt, text)
@@ -209,6 +233,8 @@ class AIService:
             'customer_name': data.get('customer_name'),
             'customer': customer_id,
             'customer_contact_name': data.get('customer_contact_name'),
+            'customer_phone': data.get('customer_phone'),
+            'customer_email': data.get('customer_email'),
             'sales_manager': sales_manager_id,
             'expected_sign_date': data.get('expected_sign_date'),
             'stage': data.get('stage') or 'CONTACT',

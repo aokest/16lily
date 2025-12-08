@@ -107,6 +107,19 @@
                   </el-form-item>
               </el-col>
           </el-row>
+          
+          <el-row :gutter="20">
+              <el-col :span="12">
+                  <el-form-item label="联系电话" prop="customer_phone">
+                      <el-input v-model="form.customer_phone" placeholder="电话/手机" />
+                  </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                  <el-form-item label="邮箱" prop="customer_email">
+                      <el-input v-model="form.customer_email" placeholder="Email" />
+                  </el-form-item>
+              </el-col>
+          </el-row>
 
           <el-row :gutter="20">
               <el-col :span="12">
@@ -115,8 +128,8 @@
                   </el-form-item>
               </el-col>
               <el-col :span="12">
-                  <el-form-item label="项目经理" v-if="isEdit">
-                      <el-input v-model="form.project_manager_name" disabled placeholder="未指派" />
+                  <el-form-item label="项目经理" prop="project_manager_name">
+                      <el-input v-model="form.project_manager_name" placeholder="未指派或AI识别" />
                   </el-form-item>
               </el-col>
           </el-row>
@@ -194,6 +207,8 @@ const form = ref({
     customer_industry: '',
     customer_region: '',
     customer_contact_name: '',
+    customer_phone: '',
+    customer_email: '',
     project_manager_name: '' // Read-only for now or text input?
 });
 
@@ -252,6 +267,8 @@ const handleAIParse = async () => {
             if (data.customer_industry) form.value.customer_industry = data.customer_industry;
             if (data.customer_region) form.value.customer_region = data.customer_region;
             if (data.customer_contact_name) form.value.customer_contact_name = data.customer_contact_name;
+            if (data.customer_phone) form.value.customer_phone = data.customer_phone;
+            if (data.customer_email) form.value.customer_email = data.customer_email;
             if (data.project_manager_name) form.value.project_manager_name = data.project_manager_name;
             
             ElMessage.success('AI 识别成功，请核对信息');

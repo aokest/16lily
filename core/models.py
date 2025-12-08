@@ -562,6 +562,8 @@ class Opportunity(models.Model):
     customer_industry = models.CharField(max_length=100, blank=True, verbose_name='客户行业', help_text='例如：教育, 金融, 能源, 政府等')
     customer_region = models.CharField(max_length=100, blank=True, verbose_name='客户区域', help_text='例如：华北区, 北京, 广东等')
     customer_contact_name = models.CharField(max_length=100, blank=True, verbose_name='客户联系人', help_text='关键联系人姓名')
+    customer_phone = models.CharField(max_length=50, blank=True, verbose_name='联系电话')
+    customer_email = models.CharField(max_length=100, blank=True, verbose_name='邮箱')
 
     # AI 预备字段
     ai_raw_text = models.TextField(blank=True, verbose_name='原始信息(AI解析)', help_text='在此粘贴大段商机介绍，后续通过AI自动提取')
