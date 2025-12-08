@@ -125,7 +125,11 @@ class OpportunityViewSet(viewsets.ModelViewSet):
         return Opportunity.objects.filter(sales_manager=user) | Opportunity.objects.filter(team_members=user)
 
     def perform_create(self, serializer):
-        serializer.save(creator=self.request.user)
+        # Default sales_manager to creator if not provided
+        save_kwargs = {'creator': self.request.user}
+        if 'sales_manager' not in serializer.validated_data:
+            save_kwargs['sales_manager'] = self.request.user
+        serializer.save(**save_kwargs)
 
 class PerformanceTargetViewSet(viewsets.ModelViewSet):
     """

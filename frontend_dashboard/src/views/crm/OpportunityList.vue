@@ -111,11 +111,11 @@ const handlePageChange = (page: number) => {
 };
 
 const handleCreate = () => {
-    ElMessage.info('新建功能开发中...');
+    router.push('/crm/opportunities/create');
 };
 
 const handleEdit = (row: any) => {
-    ElMessage.info(`编辑商机: ${row.name} (开发中)`);
+    router.push(`/crm/opportunities/${row.id}/edit`);
 };
 
 const handleDelete = (row: any) => {

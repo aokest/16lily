@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import Dashboard from '../views/Dashboard.vue';
 import Login from '../views/Login.vue';
 import OpportunityList from '../views/crm/OpportunityList.vue';
+import OpportunityForm from '../views/crm/OpportunityForm.vue';
 
 const routes = [
     {
@@ -18,6 +19,18 @@ const routes = [
         path: '/crm/opportunities',
         name: 'OpportunityList',
         component: OpportunityList,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/crm/opportunities/create',
+        name: 'OpportunityCreate',
+        component: OpportunityForm,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/crm/opportunities/:id/edit',
+        name: 'OpportunityEdit',
+        component: OpportunityForm,
         meta: { requiresAuth: true }
     }
 ];
