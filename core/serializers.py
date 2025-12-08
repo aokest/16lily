@@ -41,11 +41,15 @@ class OpportunitySerializer(serializers.ModelSerializer):
     logs = OpportunityLogSerializer(many=True, read_only=True)
     creator_name = serializers.SerializerMethodField()
     sales_manager_name = serializers.SerializerMethodField()
+    project_manager_name = serializers.SerializerMethodField()
     
     class Meta:
         model = Opportunity
         fields = '__all__'
         read_only_fields = ['creator', 'created_at', 'updated_at', 'revenue', 'profit', 'gross_profit']
+        extra_kwargs = {
+            'sales_manager': {'required': False}, # Allow backend to set default
+        }
 
     def get_creator_name(self, obj):
         if not obj.creator:
@@ -58,6 +62,12 @@ class OpportunitySerializer(serializers.ModelSerializer):
             return "Unknown"
         name = f"{obj.sales_manager.last_name}{obj.sales_manager.first_name}".strip()
         return name if name else obj.sales_manager.username
+
+    def get_project_manager_name(self, obj):
+        if not obj.project_manager:
+            return ""
+        name = f"{obj.project_manager.last_name}{obj.project_manager.first_name}".strip()
+        return name if name else obj.project_manager.username
 
 class PerformanceTargetSerializer(serializers.ModelSerializer):
     class Meta:

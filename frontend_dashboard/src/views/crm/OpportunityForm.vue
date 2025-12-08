@@ -84,8 +84,39 @@
                   </el-form-item>
               </el-col>
               <el-col :span="12">
+                  <el-form-item label="所属产线" prop="product_line">
+                      <el-input v-model="form.product_line" placeholder="例如：网络靶场" />
+                  </el-form-item>
+              </el-col>
+          </el-row>
+          
+          <el-row :gutter="20">
+              <el-col :span="8">
+                  <el-form-item label="客户行业" prop="customer_industry">
+                      <el-input v-model="form.customer_industry" placeholder="例如：教育" />
+                  </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                  <el-form-item label="客户区域" prop="customer_region">
+                      <el-input v-model="form.customer_region" placeholder="例如：华北区" />
+                  </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                  <el-form-item label="客户联系人" prop="customer_contact_name">
+                      <el-input v-model="form.customer_contact_name" placeholder="姓名" />
+                  </el-form-item>
+              </el-col>
+          </el-row>
+
+          <el-row :gutter="20">
+              <el-col :span="12">
                   <el-form-item label="负责销售" v-if="isEdit">
                       <el-input v-model="form.sales_manager_name" disabled />
+                  </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                  <el-form-item label="项目经理" v-if="isEdit">
+                      <el-input v-model="form.project_manager_name" disabled placeholder="未指派" />
                   </el-form-item>
               </el-col>
           </el-row>
@@ -157,7 +188,13 @@ const form = ref({
     win_rate: 0,
     source: '',
     description: '',
-    competitors: ''
+    competitors: '',
+    // New fields
+    product_line: '',
+    customer_industry: '',
+    customer_region: '',
+    customer_contact_name: '',
+    project_manager_name: '' // Read-only for now or text input?
 });
 
 const rules = {
@@ -211,6 +248,11 @@ const handleAIParse = async () => {
             if (data.win_rate) form.value.win_rate = data.win_rate;
             if (data.competitors) form.value.competitors = data.competitors;
             if (data.source) form.value.source = data.source;
+            if (data.product_line) form.value.product_line = data.product_line;
+            if (data.customer_industry) form.value.customer_industry = data.customer_industry;
+            if (data.customer_region) form.value.customer_region = data.customer_region;
+            if (data.customer_contact_name) form.value.customer_contact_name = data.customer_contact_name;
+            if (data.project_manager_name) form.value.project_manager_name = data.project_manager_name;
             
             ElMessage.success('AI 识别成功，请核对信息');
         }

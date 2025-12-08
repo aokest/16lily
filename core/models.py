@@ -555,6 +555,13 @@ class Opportunity(models.Model):
     win_rate = models.IntegerField(default=0, verbose_name='赢单概率(%)', help_text='0-100之间')
     competitors = models.CharField(max_length=255, blank=True, verbose_name='竞争对手', help_text='多个对手用逗号分隔')
     source = models.CharField(max_length=100, blank=True, verbose_name='商机来源', help_text='如：老客户推荐, 市场活动, 招标公告等')
+    
+    # User requested fields
+    project_manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_projects', verbose_name='项目经理')
+    product_line = models.CharField(max_length=100, blank=True, verbose_name='所属产线', help_text='例如：网络靶场, 城市安全, 培训服务等')
+    customer_industry = models.CharField(max_length=100, blank=True, verbose_name='客户行业', help_text='例如：教育, 金融, 能源, 政府等')
+    customer_region = models.CharField(max_length=100, blank=True, verbose_name='客户区域', help_text='例如：华北区, 北京, 广东等')
+    customer_contact_name = models.CharField(max_length=100, blank=True, verbose_name='客户联系人', help_text='关键联系人姓名')
 
     # AI 预备字段
     ai_raw_text = models.TextField(blank=True, verbose_name='原始信息(AI解析)', help_text='在此粘贴大段商机介绍，后续通过AI自动提取')

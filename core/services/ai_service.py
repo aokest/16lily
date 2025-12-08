@@ -171,10 +171,18 @@ class AIService:
         - name: Opportunity Name (Summarize "Customer + Product/Service", in Simplified Chinese).
         - amount: Estimated amount (number only, e.g. 150000).
         - customer_name: Customer company name (in Simplified Chinese).
-        - customer_contact: Contact person name.
+        - customer_contact_name: Contact person name.
         - sales_manager_name: Sales person name (e.g. "付磊").
+        - project_manager_name: Project manager name (e.g. "张三").
         - expected_sign_date: YYYY-MM-DD.
         - stage: One of [CONTACT, REQ_ANALYSIS, INITIATION, BIDDING, DELIVERY, AFTER_SALES, COMPLETED].
+        - win_rate: Integer 0-100 (Probability).
+        - competitors: String, comma separated.
+        - source: String (e.g. "Old Customer", "Tender").
+        - product_line: String (e.g. "Network Range", "City Safety").
+        - customer_industry: String (e.g. "Education", "Finance").
+        - customer_region: String (e.g. "Beijing", "North China").
+        - description: A detailed summary of the opportunity background and needs.
         
         Infer defaults if missing:
         - stage: 'CONTACT'
@@ -200,10 +208,19 @@ class AIService:
             'amount': data.get('amount'),
             'customer_name': data.get('customer_name'),
             'customer': customer_id,
-            'customer_contact': data.get('customer_contact'),
+            'customer_contact_name': data.get('customer_contact_name'),
             'sales_manager': sales_manager_id,
             'expected_sign_date': data.get('expected_sign_date'),
-            'stage': data.get('stage') or 'CONTACT'
+            'stage': data.get('stage') or 'CONTACT',
+            'win_rate': data.get('win_rate'),
+            'competitors': data.get('competitors'),
+            'source': data.get('source'),
+            'product_line': data.get('product_line'),
+            'customer_industry': data.get('customer_industry'),
+            'customer_region': data.get('customer_region'),
+            'description': data.get('description'),
+            # Note: project_manager logic is complex if user doesn't exist, so frontend will handle name display for now
+            'project_manager_name': data.get('project_manager_name'),
         }
 
     def parse_todo_task(self, text):
