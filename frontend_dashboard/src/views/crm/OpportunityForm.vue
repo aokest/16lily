@@ -30,9 +30,14 @@
                     <el-input v-model="form.name" placeholder="请输入商机名称" />
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="客户公司" prop="customer_company">
                     <el-input v-model="form.customer_company" placeholder="请输入客户公司名称" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="4">
+                <el-form-item label="客户代号" prop="customer_code">
+                    <el-input v-model="form.customer_code" placeholder="代号" />
                 </el-form-item>
               </el-col>
           </el-row>
@@ -193,6 +198,7 @@ const isEdit = computed(() => !!id);
 const form = ref({
     name: '',
     customer_company: '',
+    customer_code: '',
     amount: 0,
     stage: 'CONTACT',
     expected_sign_date: '',
@@ -248,6 +254,7 @@ const handleAIParse = async () => {
             form.value.name = data.name || form.value.name;
             form.value.amount = data.amount || form.value.amount;
             form.value.customer_company = data.customer_name || form.value.customer_company;
+            form.value.customer_code = data.customer_code || form.value.customer_code;
             form.value.stage = data.stage || form.value.stage;
             form.value.expected_sign_date = data.expected_sign_date || form.value.expected_sign_date;
             

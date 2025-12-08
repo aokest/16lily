@@ -64,7 +64,9 @@ def process_opportunity_ai(sender, instance, **kwargs):
     is_placeholder = instance.name in ['新商机', 'New Opportunity', '商机', '未命名']
     
     # 1. AI 解析逻辑
-    if instance.ai_raw_text and (is_new or is_placeholder):
+    # Optimization: Only run AI if the name is a placeholder. 
+    # If the user has already filled in the name (e.g. via Frontend Form), skip this slow step.
+    if instance.ai_raw_text and is_placeholder:
         data = get_ai_service().parse_opportunity(instance.ai_raw_text)
         if data:
             instance.name = data.get('name') or instance.name

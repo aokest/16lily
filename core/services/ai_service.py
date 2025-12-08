@@ -171,6 +171,7 @@ class AIService:
         - name: Opportunity Name (Summarize "Customer + Product/Service", in Simplified Chinese).
         - amount: Estimated amount (number only, e.g. 150000).
         - customer_name: Customer company name (in Simplified Chinese).
+        - customer_code: Customer code (e.g. "CUST-001", "XM-002").
         - customer_contact_name: Contact person name.
         - customer_phone: Contact phone number.
         - customer_email: Contact email.
@@ -201,14 +202,14 @@ class AIService:
         # Or better: check if DB template has 'customer_phone', if not, update it.
         
         template = PromptTemplate.objects.filter(scene=PromptTemplate.Scene.OPPORTUNITY, is_active=True).order_by('-updated_at').first()
-        if template:
-            if 'customer_phone' not in template.template:
-                # Old template detected, update it
-                print("DEBUG: Updating outdated Opportunity Prompt Template...")
-                template.template = default_prompt
-                template.save()
-            prompt = template.template
-        else:
+         if template:
+             if 'customer_code' not in template.template:
+                 # Old template detected, update it
+                 print("DEBUG: Updating outdated Opportunity Prompt Template...")
+                 template.template = default_prompt
+                 template.save()
+             prompt = template.template
+         else:
             # Create if missing
             PromptTemplate.objects.create(
                 name="Standard Opportunity Prompt V2",
@@ -231,6 +232,7 @@ class AIService:
             'name': data.get('name'),
             'amount': data.get('amount'),
             'customer_name': data.get('customer_name'),
+            'customer_code': data.get('customer_code'),
             'customer': customer_id,
             'customer_contact_name': data.get('customer_contact_name'),
             'customer_phone': data.get('customer_phone'),

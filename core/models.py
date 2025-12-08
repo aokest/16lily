@@ -517,6 +517,7 @@ class Opportunity(models.Model):
     # 客户信息 (保留文本字段以兼容历史数据，新建时优先使用关联客户)
     customer_name = models.CharField(max_length=100, verbose_name='客户姓名(文本)')
     customer_company = models.CharField(max_length=200, verbose_name='客户公司(文本)')
+    customer_code = models.CharField(max_length=50, blank=True, verbose_name='客户代号', help_text='例如：CUST-001')
     customer_org = models.CharField(max_length=200, blank=True, null=True, verbose_name='客户组织/部门')
     
     # 状态与阶段
