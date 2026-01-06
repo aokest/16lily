@@ -152,8 +152,10 @@ async function submitForm(){
     }
     dialogVisible.value = false;
     fetchData();
-  }catch(e){
-    ElMessage.error('保存失败');
+  }catch(e:any){
+    console.error('AI配置保存详情错误:', e.response || e);
+    const msg = e.response?.data ? JSON.stringify(e.response.data) : '请检查网络或权限';
+    ElMessage.error('保存失败: ' + msg);
   }finally{ submitting.value = false; }
 }
 

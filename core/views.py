@@ -1445,7 +1445,17 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
 class AIConfigurationViewSet(viewsets.ModelViewSet):
     queryset = AIConfiguration.objects.all().order_by('-is_active', '-created_at')
     serializer_class = AIConfigurationSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated] # 允许所有登录用户访问，内部再做权限过滤
+
+    def get_queryset(self):
+        # 管理员可以看到所有，普通用户只能看到自己的
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return AIConfiguration.objects.all().order_by('-is_active', '-created_at')
+        return AIConfiguration.objects.filter(user=self.request.user).order_by('-is_active', '-created_at')
+
+    def perform_create(self, serializer):
+        # 保存时自动关联当前用户
+        serializer.save(user=self.request.user)
 
     @action(detail=True, methods=['post'])
     def set_default(self, request, pk=None):

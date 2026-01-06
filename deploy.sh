@@ -102,6 +102,8 @@ EOT
      docker compose -f docker-compose.prod.yml build --no-cache
      echo "🚀 正在启动容器..."
      docker compose -f docker-compose.prod.yml up -d --force-recreate
+     echo "🔄 强制重启后端服务以确保代码生效..."
+     docker compose -f docker-compose.prod.yml restart web
     
     # 6. 等待后端启动
     echo "⏳ 等待后端服务启动 (15s)..."
