@@ -10,7 +10,10 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "首页",  "url": "admin:index", "permissions": ["auth.view_user"]},
         {"name": "商机看板", "url": "/admin/core/opportunity/", "permissions": ["core.view_opportunity"]},
-        {"name": "大屏战报", "url": "/api/dashboard/screen/", "new_window": True},
+        {"name": "CRM首页", "url": "http://127.0.0.1:8080/#/crm", "new_window": True},
+        {"name": "业绩报表", "url": "http://127.0.0.1:8080/#/reports/performance", "new_window": True},
+        {"name": "AI对话窗", "url": "http://127.0.0.1:8080/#/ai/chat", "new_window": True},
+        {"name": "大屏战报", "url": "http://127.0.0.1:8000/api/dashboard/screen/", "new_window": True},
     ],
     
     "show_sidebar": True,
@@ -20,9 +23,27 @@ JAZZMIN_SETTINGS = {
     "custom_css": "core/css/custom_admin.css",
     "custom_js": "admin/js/sidebar_grouping.js",
 
-    # RESTORE: Remove hide_models and custom_links to ensure models are visible
-    # "hide_models": [],
-    # "custom_links": {},
+    "hide_models": [
+        "core.SocialMediaAdmin",
+        "core.SocialMediaAdminHistory",
+        "core.SocialMediaAccountChangeLog",
+        "core.OpportunityLog",
+        "core.OpportunityTeamMember",
+    ],
+    "custom_links": {
+        "core.Opportunity": [
+            {"name": "商机看板", "url": "/admin/core/opportunity/kanban/", "icon": "fas fa-columns"},
+        ],
+        "core.Competition": [
+            {"name": "赛事看板", "url": "/admin/core/competition/kanban/", "icon": "fas fa-th-large"},
+        ],
+        "core.MarketActivity": [
+            {"name": "活动看板", "url": "/admin/core/marketactivity/kanban/", "icon": "fas fa-stream"},
+        ],
+        "core.DepartmentModel": [
+            {"name": "组织架构图", "url": "/admin/core/departmentmodel/org-chart/", "icon": "fas fa-project-diagram"},
+        ],
+    },
 
     # Strict Ordering for Grouping
     "order_with_respect_to": [
@@ -77,6 +98,9 @@ JAZZMIN_SETTINGS = {
         "core.AIConfiguration": "fas fa-robot",
         "core.PromptTemplate": "fas fa-comment-dots",
         "core.DepartmentModel": "fas fa-sitemap",
+        "core.CustomerTag": "fas fa-tags",
+        "core.ExternalIdMap": "fas fa-link",
+        "core.CustomerCohort": "fas fa-layer-group",
     },
 }
 

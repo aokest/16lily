@@ -25,19 +25,52 @@
           <h3 class="text-lg font-bold text-slate-800 mb-6 pb-2 border-b">基本信息</h3>
           
           <el-row :gutter="20">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="商机名称" prop="name">
                     <el-input v-model="form.name" placeholder="请输入商机名称" />
                 </el-form-item>
               </el-col>
-              <el-col :span="8">
+              <el-col :span="10">
                 <el-form-item label="客户公司" prop="customer_company">
                     <el-input v-model="form.customer_company" placeholder="请输入客户公司名称" />
                 </el-form-item>
               </el-col>
-              <el-col :span="4">
+              <el-col :span="6">
                 <el-form-item label="客户代号" prop="customer_code">
                     <el-input v-model="form.customer_code" placeholder="代号" />
+                </el-form-item>
+              </el-col>
+          </el-row>
+
+          <!-- Existing Customer selector -->
+          <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="选择客户" prop="customer">
+                    <el-select
+                        v-model="form.customer"
+                        filterable
+                        remote
+                        reserve-keyword
+                        :remote-method="searchCustomers"
+                        :loading="custLoading"
+                        placeholder="搜索并选择已有客户"
+                        style="width: 320px"
+                        @change="onCustomerSelected"
+                    >
+                        <el-option
+                            v-for="item in customerOptions"
+                            :key="item.value"
+                            :label="item.label"
+                            :value="item.value"
+                        />
+                    </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="联系人" prop="customer_contact_name">
+                    <el-select v-model="form.customer_contact_name" placeholder="选择联系人" style="width: 100%" @change="onContactSelected">
+                        <el-option v-for="p in contactOptions" :key="p.id" :label="p.label" :value="p.label" />
+                    </el-select>
                 </el-form-item>
               </el-col>
           </el-row>
@@ -58,6 +91,8 @@
                         <el-option label="交付实施" value="DELIVERY" />
                         <el-option label="售后阶段" value="AFTER_SALES" />
                         <el-option label="项目完成" value="COMPLETED" />
+                        <el-option label="商机暂停" value="SUSPENDED" />
+                        <el-option label="商机终止" value="TERMINATED" />
                     </el-select>
                 </el-form-item>
               </el-col>
@@ -175,6 +210,58 @@
           </el-row>
 
         </el-form>
+        <div v-if="isEdit" class="mt-8">
+          <el-tabs>
+            <el-tab-pane label="项目组成员">
+              <div class="mb-3 flex items-center gap-2">
+                <el-select v-model="newMemberUser" filterable placeholder="选择成员" style="width: 260px">
+                  <el-option v-for="u in userOptions" :key="u.id" :label="u.name" :value="u.id" />
+                </el-select>
+                <el-select v-model="newMemberRole" placeholder="角色" style="width: 180px">
+                  <el-option label="普通成员" value="MEMBER" />
+                  <el-option label="销售经理" value="SALES_REP" />
+                  <el-option label="售前工程师" value="PRE_SALES" />
+                  <el-option label="产品经理" value="PRODUCT" />
+                </el-select>
+                <el-button type="primary" size="small" @click="addMember" :loading="memberLoading">添加成员</el-button>
+              </div>
+              <el-table :data="members" size="small" v-loading="memberLoading">
+                <el-table-column prop="user_name" label="成员" />
+                <el-table-column prop="role_display" label="角色" />
+                <el-table-column prop="workload" label="工时(人天)" width="120" />
+                <el-table-column prop="start_date" label="进入时间" width="140" />
+              </el-table>
+            </el-tab-pane>
+            <el-tab-pane label="跟进日志">
+              <div class="mb-3 flex items-center gap-2">
+                <el-select v-model="newLogStage" placeholder="阶段快照" style="width: 140px" @change="handleStageChange">
+                  <el-option label="接触阶段" value="CONTACT" />
+                  <el-option label="需求分析" value="REQ_ANALYSIS" />
+                  <el-option label="客户立项" value="INITIATION" />
+                  <el-option label="招采阶段" value="BIDDING" />
+                  <el-option label="交付实施" value="DELIVERY" />
+                  <el-option label="售后阶段" value="AFTER_SALES" />
+                  <el-option label="项目完成" value="COMPLETED" />
+                  <el-option label="商机暂停" value="SUSPENDED" />
+                  <el-option label="商机终止" value="TERMINATED" />
+                </el-select>
+                <el-select v-model="newLogAction" placeholder="动作" style="width: 160px">
+                  <el-option v-for="act in availableActions" :key="act" :label="act" :value="act" />
+                </el-select>
+                <el-input v-model="newLogContent" placeholder="请输入跟进内容" style="width: 320px" />
+                <el-button type="primary" size="small" @click="addLog" :loading="logLoading">记录</el-button>
+              </div>
+              <el-table :data="logs" size="small" v-loading="logLoading">
+                <el-table-column prop="action" label="动作" width="140" />
+                <el-table-column prop="content" label="内容" />
+                <el-table-column prop="created_at" label="时间" width="180">
+                  <template #default="scope">{{ new Date(scope.row.created_at).toLocaleString() }}</template>
+                </el-table-column>
+                <el-table-column prop="operator_name" label="记录人" width="140" />
+              </el-table>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
       </div>
     </main>
   </div>
@@ -199,6 +286,7 @@ const form = ref({
     name: '',
     customer_company: '',
     customer_code: '',
+    customer: null,
     amount: 0,
     stage: 'CONTACT',
     expected_sign_date: '',
@@ -218,20 +306,155 @@ const form = ref({
     project_manager_name: '' // Read-only for now or text input?
 });
 
+// Customer selector
+const customerOptions = ref<any[]>([]);
+const custLoading = ref(false);
+const contactOptions = ref<any[]>([]);
+const searchCustomers = async (query: string) => {
+    custLoading.value = true;
+    try {
+        const res = await api.get('customers/', { params: { search: query } });
+        const list = res.data.results || res.data;
+        customerOptions.value = list.map((c: any) => ({
+            label: `${c.name}${c.customer_code ? ' (' + c.customer_code + ')' : ''}`,
+            value: c.id,
+            name: c.name,
+            code: c.customer_code
+        }));
+    } catch (e) {
+        console.error(e);
+    } finally {
+        custLoading.value = false;
+    }
+};
+
+const onCustomerSelected = async (val: any) => {
+    const found = customerOptions.value.find((x: any) => x.value === val);
+    if (found) {
+        form.value.customer_company = found.name;
+        form.value.customer_code = found.code || form.value.customer_code;
+        try {
+            const res = await api.get(`customers/${val}/`);
+            const cust = res.data || {};
+            form.value.customer_industry = cust.industry || form.value.customer_industry;
+            const contacts = cust.contacts || [];
+            contactOptions.value = contacts.map((c: any) => ({ id: c.id, name: c.name, phone: c.phone, email: c.email, label: `${c.name}${c.phone ? ' ' + c.phone : ''}` }));
+        } catch (e) { console.error(e); }
+    }
+};
+
+const loadCustomerContacts = async (id: number) => {
+    try {
+        const res = await api.get('contacts/', { params: { customer: id } });
+        contactOptions.value = res.data.results || res.data;
+    } catch (e) { console.error(e); }
+};
+// @ts-ignore
+const _useLoadContacts = loadCustomerContacts;
+
+const onContactSelected = (label: string) => {
+    const found = contactOptions.value.find((x: any) => x.label === label);
+    if (found) {
+        form.value.customer_contact_name = found.name;
+        form.value.customer_phone = found.phone || form.value.customer_phone;
+        form.value.customer_email = found.email || form.value.customer_email;
+    }
+};
+
+
 const rules = {
     name: [{ required: true, message: '请输入商机名称', trigger: 'blur' }],
     customer_company: [{ required: true, message: '请输入客户公司', trigger: 'blur' }],
     amount: [{ required: true, message: '请输入金额', trigger: 'blur' }],
 };
+// Team members & logs
+const members = ref<any[]>([]);
+const logs = ref<any[]>([]);
+const memberLoading = ref(false);
+const logLoading = ref(false);
+const newMemberUser = ref<number|null>(null);
+const newMemberRole = ref('MEMBER');
+const newLogContent = ref('');
+const newLogAction = ref('');
+const newLogStage = ref('');
+const availableActions = ref<string[]>([]);
+
+const stageActionMap: Record<string, string[]> = {
+    'CONTACT': ['初步接触', '资料发送', '预约拜访', '电话沟通'],
+    'REQ_ANALYSIS': ['需求调研', '方案汇报', '技术交流', '客户痛点确认'],
+    'INITIATION': ['客户立项', '预算确认', '立项审批', '招标参数确认'],
+    'BIDDING': ['标书购买', '投标', '讲标/述标', '中标通知'],
+    'DELIVERY': ['合同签订', '进场实施', '阶段汇报', '初验'],
+    'AFTER_SALES': ['终验', '维保服务', '回款', '客户回访'],
+    'COMPLETED': ['项目复盘', '资料归档'],
+    'SUSPENDED': ['暂停说明', '重启计划'],
+    'TERMINATED': ['中止说明', '丢单分析']
+};
+
+const handleStageChange = (val: string) => {
+    availableActions.value = stageActionMap[val] || ['其他'];
+    newLogAction.value = availableActions.value[0] || '';
+};
+
+const userOptions = ref<any[]>([]);
 
 const fetchData = async () => {
     if (!isEdit.value) return;
     try {
         const res = await api.get(`opportunities/${id}/`);
         form.value = { ...res.data };
+        // Preload customer display
+        if (res.data.customer) {
+            form.value.customer = res.data.customer;
+        }
+        // Load members & logs
+        await fetchMembers();
+        await fetchLogs();
     } catch (e) {
         ElMessage.error('获取详情失败');
     }
+};
+const fetchMembers = async () => {
+  memberLoading.value = true;
+  try {
+    const res = await api.get('opportunity-team-members/', { params: { opportunity: id } });
+    members.value = res.data.results || res.data || [];
+  } catch (e){ console.error(e); } finally { memberLoading.value = false; }
+};
+const fetchLogs = async () => {
+  logLoading.value = true;
+  try {
+    const res = await api.get('opportunity-logs/', { params: { opportunity: id } });
+    logs.value = res.data.results || res.data || [];
+  } catch (e){ console.error(e); } finally { logLoading.value = false; }
+};
+const fetchUsers = async () => {
+  try { 
+    const res = await api.get('users/simple/'); 
+    userOptions.value = res.data.results || res.data || []; 
+  } catch (e) {
+    console.error('Fetch users error:', e);
+  }
+};
+const addMember = async () => {
+  if (!newMemberUser.value) { ElMessage.warning('请选择成员'); return; }
+  memberLoading.value = true;
+  try {
+    await api.post('opportunity-team-members/', { opportunity: id, user: newMemberUser.value, role: newMemberRole });
+    ElMessage.success('已添加成员');
+    newMemberUser.value = null;
+    await fetchMembers();
+  } catch (e){ console.error(e); ElMessage.error('添加失败'); } finally { memberLoading.value = false; }
+};
+const addLog = async () => {
+  if (!newLogContent.value) { ElMessage.warning('请输入内容'); return; }
+  logLoading.value = true;
+  try {
+    await api.post('opportunity-logs/', { opportunity: id, content: newLogContent.value, action: newLogAction });
+    ElMessage.success('已记录');
+    newLogContent.value = '';
+    await fetchLogs();
+  } catch (e){ console.error(e); ElMessage.error('记录失败'); } finally { logLoading.value = false; }
 };
 
 const handleAIParse = async () => {
@@ -297,7 +520,12 @@ const handleSubmit = async () => {
                 // Prepare payload
                 const payload = { ...form.value };
                 // Ensure customer_name is set for legacy compatibility
-                if (!payload.customer_name) payload.customer_name = payload.customer_company;
+                // @ts-ignore
+                if (!payload.customer_name) {
+                    // @ts-ignore
+                    payload.customer_name = payload.customer_company;
+                }
+                // If selected customer id exists, keep it; otherwise backend will try to match by name
 
                 if (isEdit.value) {
                     await api.patch(`opportunities/${id}/`, payload);
@@ -322,6 +550,7 @@ const handleSubmit = async () => {
 };
 
 onMounted(() => {
+    fetchUsers();
     fetchData();
 });
 </script>

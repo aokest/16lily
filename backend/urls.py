@@ -22,4 +22,5 @@ urlpatterns = [
     path("", RedirectView.as_view(url="/admin/", permanent=False)), # Redirect root to admin
     path("admin/", admin.site.urls),
     path("api/", include("core.urls")),
+    path("crm/", RedirectView.as_view(url="http://127.0.0.1:8080/", permanent=False)), # Redirect CRM to frontend dashboard
 ]

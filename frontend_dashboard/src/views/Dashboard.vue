@@ -1,5 +1,11 @@
 <template>
   <div class="h-screen flex flex-col p-4 md:p-6 gap-4 md:gap-6 bg-slate-900 text-slate-200 overflow-hidden font-sans theme-transition" :class="themeClass">
+    <router-link to="/reports/performance" class="fixed top-4 right-4 z-50">
+      <el-button type="primary" size="small">业绩报表</el-button>
+    </router-link>
+    <router-link to="/crm" class="fixed top-4 right-28 z-50">
+      <el-button size="small">CRM首页</el-button>
+    </router-link>
     <!-- Header -->
     <header class="flex justify-between items-center game-card p-4 shrink-0">
       <div class="flex items-center gap-6">
@@ -134,6 +140,7 @@
                              <div class="flex justify-between items-start mb-1 relative z-10">
                                 <div class="flex items-center gap-2">
                                     <span class="font-bold text-slate-200 text-sm group-hover:text-white">{{ log.operator_name }}</span>
+                                    <span v-if="log.operator_dept" :class="['text-[10px] px-1.5 py-0.5 rounded border font-mono', deptBadgeClass(log.operator_dept)]">{{ deptBadgeLabel(log.operator_dept) }}</span>
                                     <span class="text-[10px] px-1.5 py-0.5 bg-slate-700/50 text-slate-400 rounded border border-slate-600 font-mono">{{ formatTime(log.created_at) }}</span>
                                 </div>
                                 <div v-if="getEventIcon(log.action)" class="text-lg filter drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">
@@ -143,6 +150,9 @@
                             <div class="text-sm text-slate-400 group-hover:text-slate-300 relative z-10">
                                 <span class="font-bold" :class="getTextColor(log.action)">[{{ log.action }}]</span> 
                                 <span>{{ log.content }}</span>
+                                <span v-if="isReject(log.action) && rejectReason(log.content)" class="ml-2 px-1.5 py-0.5 text-[10px] rounded border border-red-500/50 bg-red-900/10 text-red-300 font-mono">
+                                  原因: {{ rejectReason(log.content) }}
+                                </span>
                             </div>
                         </div>
                         <div v-if="i === activities.length - 1 && activities.length > 5" class="border-t border-dashed border-slate-700 my-4 pt-4 opacity-30"></div>
@@ -204,7 +214,9 @@ const themeClass = computed(() => `theme-${currentTheme.value}`);
 
 const currentNewStat = computed(() => {
     const key = newStatsOptions[currentNewStatIndex.value];
+    // @ts-ignore
     const val = stats.value.new_counts ? stats.value.new_counts[key] : 0;
+    // @ts-ignore
     return { label: newStatsLabels[key], value: val };
 });
 
@@ -246,6 +258,8 @@ const getEventIcon = (action: string) => {
     if (action.includes('签合同') || action.includes('签约')) return '✍️';
     if (action.includes('交付') || action.includes('完成')) return '🚀';
     if (action.includes('输单')) return '💔';
+    if (action.includes('审批通过')) return '✅';
+    if (action.includes('审批驳回')) return '❌';
     if (action.includes('创建')) return '✨';
     return '';
 };
@@ -265,8 +279,41 @@ const getTextColor = (action: string) => {
     if (action.includes('签合同') || action.includes('签约')) return 'neon-green font-black';
     if (action.includes('交付') || action.includes('完成')) return 'neon-cyan font-black';
     if (action.includes('输单')) return 'text-red-400';
+    if (action.includes('审批通过')) return 'text-green-400';
+    if (action.includes('审批驳回')) return 'text-red-400';
     if (action.includes('创建')) return 'text-white';
     return 'text-blue-400';
+};
+/** 判断是否为审批驳回事件 */
+const isReject = (action: string) => action?.includes('审批驳回');
+/** 从内容中提取驳回原因（格式: "<model>#<id> <reason>"，取空格后的尾部） */
+const rejectReason = (content: string) => {
+    if (!content) return '';
+    const idx = content.indexOf(' ');
+    if (idx < 0) return '';
+    return content.slice(idx + 1).trim();
+};
+
+const deptBadgeLabel = (code: string) => {
+    const map: Record<string, string> = {
+        'SALES': '销售部',
+        'GAME': '春秋GAME',
+        'GROUP_MARKETING': '集团市场部',
+        'LAB': '标准实践实验室',
+        'RND': '研发中心',
+        'OTHER': '其他'
+    };
+    return map[code] || code;
+};
+
+const deptBadgeClass = (code: string) => {
+    const base = 'border-slate-600 bg-slate-700/50 text-slate-300';
+    if (code === 'SALES') return 'border-green-500/50 bg-green-900/20 text-green-300';
+    if (code === 'GAME') return 'border-purple-500/50 bg-purple-900/20 text-purple-300';
+    if (code === 'GROUP_MARKETING') return 'border-amber-500/50 bg-amber-900/20 text-amber-300';
+    if (code === 'LAB') return 'border-cyan-500/50 bg-cyan-900/20 text-cyan-300';
+    if (code === 'RND') return 'border-blue-500/50 bg-blue-900/20 text-blue-300';
+    return base;
 };
 
 const lockDepartment = (index: number) => {
@@ -281,6 +328,7 @@ const lockDepartment = (index: number) => {
 
 const loadData = async () => {
     try {
+        // @ts-ignore
         const deptCode = departmentTags[currentDeptIndex.value].code;
         const [statsRes, activitiesRes] = await Promise.all([
             fetchStats({ department: deptCode }),

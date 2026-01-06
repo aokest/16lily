@@ -12,8 +12,9 @@ import json
 from datetime import datetime
 from .models import (
     UserProfile, Opportunity, OpportunityLog, PerformanceTarget, OpportunityTeamMember, 
-    Customer, Contact, Competition, MarketActivity, Announcement, TodoTask, WorkReport, SocialMediaStats, ApprovalStatus,
-    DepartmentModel, AIConfiguration, PromptTemplate
+    Customer, Contact, Competition, MarketActivity, Announcement, TodoTask, WorkReport, SocialMediaStats,
+    DepartmentModel, AIConfiguration, PromptTemplate, SocialMediaAccount, CustomerTag, ExternalIdMap, CustomerCohort, SubmissionLog,
+    Project, ProjectCard, ProjectChangeLog, DailyReport, ApprovalRequest, ApprovalStatus
 )
 
 # --- Common Export Action ---
@@ -45,66 +46,12 @@ def export_as_csv(modeladmin, request, queryset):
 
 # --- Workflow & Activity Actions ---
 
-@admin.action(description='批准立项 (仅销售/管理员)')
-def approve_opportunity(modeladmin, request, queryset):
-    user = request.user
-    is_sales = False
-    if hasattr(user, 'profile'):
-        dept = user.profile.department_link
-        if dept and dept.category == DepartmentModel.Category.SALES:
-            is_sales = True
-        elif user.profile.department == 'SALES':
-            is_sales = True
-    
-    if not (user.is_superuser or is_sales):
-        modeladmin.message_user(request, "权限不足：仅【销售部门】人员或系统管理员可审批商机立项。", level='ERROR')
-        return
-
-    rows_updated = queryset.update(approval_status=ApprovalStatus.APPROVED)
-    modeladmin.message_user(request, f"已批准 {rows_updated} 个商机立项。")
-
-@admin.action(description='批准赛事 (仅春秋GAME)')
-def approve_competition(modeladmin, request, queryset):
-    user = request.user
-    is_game = False
-    if hasattr(user, 'profile'):
-        dept = user.profile.department_link
-        if dept and ('GAME' in dept.name or '春秋' in dept.name): 
-             is_game = True
-        elif user.profile.department == 'GAME':
-             is_game = True
-    
-    if not (user.is_superuser or is_game):
-        modeladmin.message_user(request, "权限不足：仅【春秋GAME】部门人员或系统管理员可审批赛事。", level='ERROR')
-        return
-
-    rows_updated = queryset.update(status=ApprovalStatus.APPROVED)
-    modeladmin.message_user(request, f"已批准 {rows_updated} 个赛事。")
-
-@admin.action(description='批准活动 (仅集团市场部)')
-def approve_activity(modeladmin, request, queryset):
-    user = request.user
-    is_marketing = False
-    if hasattr(user, 'profile'):
-        dept = user.profile.department_link
-        if dept and ('市场' in dept.name or 'Marketing' in dept.name): 
-             is_marketing = True
-        elif user.profile.department == 'GROUP_MARKETING':
-             is_marketing = True
-    
-    if not (user.is_superuser or is_marketing):
-        modeladmin.message_user(request, "权限不足：仅【集团市场部】人员或系统管理员可审批市场活动。", level='ERROR')
-        return
-
-    rows_updated = queryset.update(status=ApprovalStatus.APPROVED)
-    modeladmin.message_user(request, f"已批准 {rows_updated} 个市场活动。")
-
 @admin.action(description='批准/发布公告')
 def approve_announcement(modeladmin, request, queryset):
     if not (request.user.is_superuser or request.user.has_perm('core.change_announcement')):
         modeladmin.message_user(request, "权限不足。", level='ERROR')
         return
-    queryset.update(status=ApprovalStatus.APPROVED)
+    queryset.update(status=Announcement.Status.APPROVED)
     modeladmin.message_user(request, "公告已发布。")
 
 
@@ -174,10 +121,10 @@ class AIConfigurationAdmin(admin.ModelAdmin):
 
 @admin.register(DepartmentModel)
 class DepartmentModelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'parent', 'manager', 'order')
+    list_display = ('name', 'category', 'parent', 'manager')
     list_filter = ('category', 'parent')
     search_fields = ('name',)
-    ordering = ('order', 'name')
+    ordering = ('name',)
     autocomplete_fields = ['parent', 'manager']
 
     def get_urls(self):
@@ -199,12 +146,12 @@ class DepartmentModelAdmin(admin.ModelAdmin):
                 'manager': dept.manager.username if dept.manager else "",
                 'children': []
             }
-            children = dept.children.all().order_by('order')
+            children = dept.children.all().order_by('name')
             for child in children:
                 node['children'].append(build_tree(child))
             return node
             
-        roots = DepartmentModel.objects.filter(parent__isnull=True).order_by('order')
+        roots = DepartmentModel.objects.filter(parent__isnull=True).order_by('name')
         
         if roots.count() > 1:
             chart_data = {
@@ -230,14 +177,53 @@ class UserProfileInline(admin.StackedInline):
     can_delete = False
     verbose_name_plural = '用户扩展信息'
     fk_name = 'user'
+    class UserProfileForm(forms.ModelForm):
+        class Meta:
+            model = UserProfile
+            fields = '__all__'
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            data = self.data or None
+            series = None
+            if data:
+                series = data.get('userprofile-0-job_series') or data.get('job_series')
+            if not series and self.instance and self.instance.pk:
+                series = self.instance.job_series
+            # Filter job_level choices by series
+            def filter_levels(prefix):
+                self.fields['job_level'].choices = [(code, label) for code, label in JobLevel.choices if code.startswith(prefix + '_')]
+            if series in [JobSeries.M, JobSeries.S, JobSeries.P]:
+                filter_levels(series)
+            # Job position choices
+            if series in [JobSeries.M, JobSeries.S]:
+                # 同步岗位为对应序列的职级集合
+                self.fields['job_position'].choices = [(code, label) for code, label in JobPosition.choices if code.startswith(series + '_')]
+                self.fields['job_position'].help_text = '岗位名称与职级一致（自动与职级同步）'
+            else:
+                # 技术序列岗位库（排除 M_/S_）
+                self.fields['job_position'].choices = [(code, label) for code, label in JobPosition.choices if not (code.startswith('M_') or code.startswith('S_'))]
+
+        def clean(self):
+            cleaned = super().clean()
+            series = cleaned.get('job_series')
+            level = cleaned.get('job_level')
+            if series in [JobSeries.M, JobSeries.S]:
+                cleaned['job_position'] = level
+            else:
+                if not cleaned.get('job_position'):
+                    raise ValidationError({'job_position': '技术序列需选择岗位'})
+            return cleaned
+
+    form = UserProfileForm
     fieldsets = (
-        (None, {'fields': ('department_link', 'job_role', 'reports_to')}),
+        (None, {'fields': ('department_link', 'job_series', 'job_level', 'job_position', 'reports_to')}),
         ('其他信息', {'fields': ('avatar', 'wechat_openid')}),
     )
 
 class UserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
-    list_display = ('username', 'get_name', 'get_department_new', 'get_job_role', 'is_staff')
+    list_display = ('username', 'get_name', 'get_department_new', 'get_job_label', 'is_staff')
     actions = [export_as_csv]
 
     def get_name(self, instance):
@@ -250,9 +236,13 @@ class UserAdmin(BaseUserAdmin):
         return instance.profile.get_department_display()
     get_department_new.short_description = '部门'
 
-    def get_job_role(self, instance):
-        return instance.profile.get_job_role_display()
-    get_job_role.short_description = '角色'
+    def get_job_label(self, instance):
+        prof = instance.profile
+        series = prof.get_job_series_display()
+        level = prof.get_job_level_display()
+        pos = prof.get_job_position_display() if prof.job_position else ''
+        return f"{series}-{level}{(' / ' + pos) if pos else ''}"
+    get_job_label.short_description = '序列/职级/岗位'
 
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
@@ -360,22 +350,19 @@ def apply_for_transfer(modeladmin, request, queryset):
 @admin.register(Opportunity)
 class OpportunityAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
     form = OpportunityForm
-    list_display = ('name', 'customer_company', 'get_sales_manager_name', 'stage_display', 'status_display', 'approval_status', 'amount', 'created_at', 'is_confirmed_by_sales')
+    list_display = ('name', 'customer_company', 'get_sales_manager_name', 'stage_display', 'amount', 'created_at')
     list_filter = (
         'sales_manager', 
         'customer', 
         ('created_at', admin.DateFieldListFilter), # Filter by Time
         'amount', # Simple filter for exact amount, usually needs custom range filter but default is ok for now
         'stage', # "Deliverables" often implied by stage
-        'status', 
-        'approval_status', 
-        'is_confirmed_by_sales'
     )
     search_fields = ('name', 'customer_name', 'customer_company', 'customer__name')
     inlines = [OpportunityTeamMemberInline, OpportunityLogInline]
     filter_horizontal = ('team_members',)
     autocomplete_fields = ['customer']
-    actions = [approve_opportunity, apply_for_transfer, export_as_csv]
+    actions = [apply_for_transfer, export_as_csv]
 
     def get_sales_manager_name(self, obj):
         if obj.sales_manager:
@@ -399,12 +386,6 @@ class OpportunityAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
     class Media:
         css = {'all': ('admin/css/custom_tooltips.css',)}
         js = ('admin/js/custom_tooltips.js', 'admin/js/admin_dynamic.js')
-
-    def status_display(self, obj):
-        colors = {'ACTIVE': 'blue', 'WON': 'green', 'LOST': 'red', 'SUSPENDED': 'orange', 'COMPLETED': 'purple'}
-        color = colors.get(obj.status, 'gray')
-        return format_html('<span style="color: {}; font-weight: bold;">● {}</span>', color, obj.get_status_display())
-    status_display.short_description = '状态'
 
     def stage_display(self, obj):
         return format_html('<span style="padding: 3px 8px; background-color: #f0f0f0; border-radius: 4px;">{}</span>', obj.get_stage_display())
@@ -579,9 +560,9 @@ class OpportunityLogAdmin(admin.ModelAdmin):
 
 @admin.register(PerformanceTarget)
 class PerformanceTargetAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'year', 'quarter', 'department', 'user', 'target_amount')
-    list_filter = ('year', 'quarter', 'department')
-    search_fields = ('user__username',)
+    list_display = ('__str__', 'year', 'quarter', 'month', 'department', 'user', 'target_contract_amount', 'target_gross_profit', 'target_revenue')
+    list_filter = ('target_type', 'period', 'year', 'quarter', 'month', 'department')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name')
 
 # --- CRM Admins ---
 class ContactInline(admin.TabularInline):
@@ -597,18 +578,20 @@ class OpportunityInline(admin.TabularInline):
     show_change_link = True
 
 @admin.register(Customer)
-class CustomerAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'industry', 'scale', 'status', 'get_owner_name', 'total_signed_amount', 'total_opportunities')
-    list_filter = ('status', 'industry', 'scale', 'owner')
-    search_fields = ('name', 'address')
-    inlines = [ContactInline, OpportunityInline]
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'industry', 'region', 'owner', 'created_at')
+    list_filter = ('industry', 'region')
+    search_fields = ('name', 'customer_code')
     actions = [export_as_csv]
     
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         user = request.user
         if user.is_superuser: return qs
-        if hasattr(user, 'profile') and user.profile.job_role in ['MANAGER', 'DIRECTOR']: return qs
+        if hasattr(user, 'profile'):
+            prof = user.profile
+            if prof.job_series == 'M' or prof.job_level in ['M_MANAGER','M_DIRECTOR','M_VDIRECTOR','M_SENIOR_MANAGER','P_MANAGER','P_SENIOR_MANAGER','P_DIRECTOR','P_VDIRECTOR','P_SENIOR_DIRECTOR']:
+                return qs
         return qs.filter(owner=user)
 
     def get_owner_name(self, obj):
@@ -628,8 +611,8 @@ class CustomerAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
 
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):
-    list_display = ('name', 'customer', 'title', 'phone', 'is_decision_maker')
-    list_filter = ('customer', 'is_decision_maker')
+    list_display = ('name', 'customer', 'title', 'phone')
+    list_filter = ('customer',)
     search_fields = ('name', 'customer__name', 'phone')
     actions = [export_as_csv]
     
@@ -637,22 +620,23 @@ class ContactAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         user = request.user
         if user.is_superuser: return qs
-        if hasattr(user, 'profile') and user.profile.job_role in ['MANAGER', 'DIRECTOR']: return qs
+        if hasattr(user, 'profile'):
+            prof = user.profile
+            if prof.job_series == 'M' or prof.job_level in ['M_MANAGER','M_DIRECTOR','M_VDIRECTOR','M_SENIOR_MANAGER','P_MANAGER','P_SENIOR_MANAGER','P_DIRECTOR','P_VDIRECTOR','P_SENIOR_DIRECTOR']:
+                return qs
         return qs.filter(customer__owner=user)
 
 @admin.register(Competition)
 class CompetitionAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'status', 'time', 'location', 'type', 'project_name', 'owner_name', 'department_name')
-    list_filter = ('status', 'format', 'industry', 'type')
-    search_fields = ('name', 'location', 'project_name', 'owner_name')
-    actions = [approve_competition, export_as_csv]
+    list_display = ('name', 'status', 'start_date', 'location', 'organizer')
+    list_filter = ('status',)
+    search_fields = ('name', 'location', 'organizer')
+    actions = [export_as_csv]
     
     fieldsets = (
-        ('基础信息', {'fields': ('name', 'status', 'time', 'end_time', 'location', 'type')}),
-        ('立项与组织', {'fields': ('project_name', 'project_code', 'contact_person', 'owner_name', 'department_name', 'organizers', 'host_type')}),
-        ('赛事规模与详情', {'fields': ('duration', 'team_count', 'leader_count', 'participant_count', 'challenge_count', 'challenge_type', 'impact_level')}),
-        ('其他属性 (旧字段)', {'fields': ('format', 'system_format', 'scale', 'target_audience', 'industry', 'level', 'description', 'ai_raw_text'), 'classes': ('collapse',)}),
-        ('系统信息', {'fields': ('creator', 'confirmed_by'), 'classes': ('collapse',)})
+        ('基础信息', {'fields': ('name', 'status', 'start_date', 'end_date', 'location')}),
+        ('组织信息', {'fields': ('organizer', 'website', 'description')}),
+        ('赛事规模', {'fields': ('challenge_count',)}),
     )
     
     def get_urls(self):
@@ -682,10 +666,10 @@ class CompetitionAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
 
 @admin.register(MarketActivity)
 class MarketActivityAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'status', 'time', 'location', 'type')
-    list_filter = ('status', 'type')
+    list_display = ('name', 'date', 'location', 'owner')
+    list_filter = ('date',)
     search_fields = ('name', 'location')
-    actions = [approve_activity, export_as_csv]
+    actions = [export_as_csv]
     
     def get_urls(self):
         from django.urls import path
@@ -710,20 +694,40 @@ class AnnouncementAdmin(admin.ModelAdmin):
 
 @admin.register(TodoTask)
 class TodoTaskAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    list_display = ('title', 'assignee', 'deadline', 'is_completed', 'source_type')
-    list_filter = ('is_completed', 'source_type', 'assignee')
+    list_display = ('title', 'user', 'deadline', 'is_completed', 'source_type')
+    list_filter = ('is_completed', 'source_type', 'user')
     search_fields = ('title', 'description')
 
 @admin.register(WorkReport)
 class WorkReportAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    list_display = ('user', 'type', 'report_date', 'created_at')
-    list_filter = ('type', 'report_date', 'user')
+    list_display = ('user', 'created_at')
+    list_filter = ('user',)
     search_fields = ('content',)
 
 @admin.register(SocialMediaStats)
 class SocialMediaStatsAdmin(admin.ModelAdmin):
-    list_display = ('platform', 'fans_count', 'record_date')
-    list_filter = ('platform', 'record_date')
+    list_display = ('account', 'fans_count', 'date')
+    list_filter = ('account', 'date')
+
+@admin.register(SocialMediaAccount)
+class SocialMediaAccountAdmin(admin.ModelAdmin):
+    list_display = ('platform', 'account_name', 'manager', 'created_at')
+    list_filter = ('platform',)
+    search_fields = ('platform', 'account_name')
+    # autocomplete_fields = ['creator','admins']
+    readonly_fields = ('created_at',)
+
+@admin.register(SubmissionLog)
+class SubmissionLogAdmin(admin.ModelAdmin):
+    list_display = ('id','status','user','intent','entity','created_at', 'error_message_short')
+    list_filter = ('status','entity','intent','user')
+    search_fields = ('text_input', 'error_message', 'raw_response')
+    readonly_fields = ('created_at', 'prompt', 'raw_response', 'error_message', 'result_payload')
+    actions = [export_as_csv]
+    
+    def error_message_short(self, obj):
+        return (obj.error_message[:50] + '...') if obj.error_message else '-'
+    error_message_short.short_description = 'Error'
 
 # --- Transfer Application Admin ---
 from .models_transfer import OpportunityTransferApplication
@@ -815,9 +819,36 @@ class OpportunityTransferApplicationHiddenAdmin(admin.ModelAdmin):
                 TodoTask.objects.create(
                     title=f"商机移交审批: {obj.opportunity.name}",
                     description=f"申请人: {obj.applicant.username}\n移交原因: {obj.reason}\n目标负责人: {obj.target_owner.username}",
-                    source_type=TodoTask.SourceType.WORKFLOW, # Corrected
-                    assignee=manager,
+                    source_type=TodoTask.SourceType.SYSTEM, # Corrected
+                    user=manager,
                     content_object=obj
                 )
                 
+        super().save_model(request, obj, form, change)
+
+# --- Tag & External ID & Cohort Admins ---
+@admin.register(CustomerTag)
+class CustomerTagAdmin(admin.ModelAdmin):
+    list_display = ('name', 'color', 'created_at')
+    search_fields = ('name',)
+    list_filter = ('created_at',)
+    actions = [export_as_csv]
+
+@admin.register(ExternalIdMap)
+class ExternalIdMapAdmin(admin.ModelAdmin):
+    list_display = ('entity_type', 'object_id', 'system_name', 'external_id', 'created_at')
+    list_filter = ('entity_type', 'system_name', 'created_at')
+    search_fields = ('external_id', 'system_name')
+    actions = [export_as_csv]
+
+@admin.register(CustomerCohort)
+class CustomerCohortAdmin(admin.ModelAdmin):
+    list_display = ('name', 'creator', 'created_at')
+    search_fields = ('name', 'creator__username')
+    list_filter = ('created_at',)
+    readonly_fields = ('creator',)
+    actions = [export_as_csv]
+    def save_model(self, request, obj, form, change):
+        if not change and not obj.creator:
+            obj.creator = request.user
         super().save_model(request, obj, form, change)

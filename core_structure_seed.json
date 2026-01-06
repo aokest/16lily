@@ -1,0 +1,811 @@
+[
+{
+  "model": "auth.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$wQr92CXZCFKgsmhNsfO4fQ$qT6WW1hjP8zIQcnVe2t7Cw7M2rJu8N+8Iz/xVc2kBAg=",
+    "last_login": "2025-12-30T15:29:43.790Z",
+    "is_superuser": true,
+    "username": "admin",
+    "first_name": "客",
+    "last_name": "傲",
+    "email": "aoke@163.com",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2025-12-05T04:26:00Z",
+    "groups": [
+      5
+    ],
+    "user_permissions": [
+      1,
+      2,
+      3,
+      4,
+      9,
+      10,
+      11,
+      12,
+      5,
+      6,
+      7,
+      8,
+      13,
+      14,
+      15,
+      16,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      17,
+      18,
+      19,
+      20,
+      25,
+      26,
+      27,
+      28,
+      33,
+      34,
+      35,
+      36,
+      49,
+      50,
+      51,
+      52,
+      37,
+      38,
+      39,
+      40,
+      29,
+      30,
+      31,
+      32,
+      21,
+      22,
+      23,
+      24
+    ]
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 2,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$hnHQXRaqJEMiLPvwwbcGpp$eXhFbcim45Unuk3U9m1QTbaaTYcvkI3D2XFJNvUY42g=",
+    "last_login": "2025-12-05T17:40:58.733Z",
+    "is_superuser": true,
+    "username": "aoke",
+    "first_name": "磊",
+    "last_name": "付",
+    "email": "fulei@integritytech.com.cn",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2025-12-05T04:29:00Z",
+    "groups": [
+      5
+    ],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 3,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$LvDIeJBjxXpgrPITigN5m6$5t08xv4itS6mGuY0KsgyCqIRnQh/CJluyO4huiqk6TU=",
+    "last_login": "2025-12-11T05:11:39.819Z",
+    "is_superuser": false,
+    "username": "wjj",
+    "first_name": "晶晶",
+    "last_name": "魏",
+    "email": "weijingjing@integritytech.com.cn",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-05T09:17:00Z",
+    "groups": [
+      5
+    ],
+    "user_permissions": [
+      25,
+      26,
+      27,
+      28,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      29,
+      30,
+      31,
+      32
+    ]
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 5,
+  "fields": {
+    "password": "",
+    "last_login": null,
+    "is_superuser": true,
+    "username": "admin_test",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-08T16:57:24.553Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 6,
+  "fields": {
+    "password": "",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "target_test",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-08T16:57:24.557Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 7,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$XQpW13O5LKVqp5fKUB35oK$GpRQZYeAcedwVo+Il1OxIAcnyjVnOAiBh8E8nvZwClw=",
+    "last_login": null,
+    "is_superuser": true,
+    "username": "admin_approval",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2025-12-10T15:26:46.067Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 8,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$0o4K824dhkyp0n8a5yAVb8$+qjZi2EwfQTweDGjgHznPPJbncLJD5XGSrLO7Mwdk7s=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "manager_sales",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-10T15:26:46.218Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 9,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$gO4LbZeMXUCFVcznlK1hYD$TyaJ2CBwBVWBUy8Phmpy9tsgmbDDNBitQYuD47cuVXk=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "manager_marketing",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-10T15:26:46.343Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 11,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$7htIQB8veHWmiTd5TpSxsD$p8KO7VzbNkTELZgyKtQ5qW/cuzZJYQWd38vY8y9hy7c=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "employee_sales",
+    "first_name": "化",
+    "last_name": "王",
+    "email": "",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-10T15:26:46.615Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 12,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$3Qiq8nNcQ9HGZDUWC4K35o$Iw25xQS1flXFRJNnWyvS4/BXMxwxq8F3H1vQTovvIIc=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "kuangtu",
+    "first_name": "徒",
+    "last_name": "狂",
+    "email": "kt@ichunqiu.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-27T14:24:31.913Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 13,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$XsIpjcnKwJZj6Xaqnyju3u$h+hYimVoj+W1J1R8509tFIrdUxJ09d1gsYGZzFb7mBo=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "xstar",
+    "first_name": "楠",
+    "last_name": "陈",
+    "email": "",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-01-05T08:30:20.230Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 15,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$UAPaTDimJkbaCMVdVpgy0j$Gwh8GH9EbSPNmnoeljdvs0369jc2Xw5m48WRKhhtkr4=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "pcat",
+    "first_name": "泽凯",
+    "last_name": "陈",
+    "email": "chenzekai@integritytech.com.cn",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-01-06T13:44:23.447Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 16,
+  "fields": {
+    "password": "pbkdf2_sha256$600000$do8Cwe97C7GB0liBBiK0Zu$8Ebp/vzb27ogVwYB+k+ZAsN51TjN25SbpK8Nn+/vGeM=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "6166",
+    "first_name": "怡",
+    "last_name": "刘",
+    "email": "liuyi@integritytech.com.cn",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-01-06T13:55:56.294Z",
+    "groups": [
+      6
+    ],
+    "user_permissions": []
+  }
+},
+{
+  "model": "core.departmentmodel",
+  "pk": 1,
+  "fields": {
+    "name": "十六军团",
+    "parent": null,
+    "manager": 2,
+    "category": "SALES"
+  }
+},
+{
+  "model": "core.departmentmodel",
+  "pk": 3,
+  "fields": {
+    "name": "春秋GAME",
+    "parent": null,
+    "manager": 13,
+    "category": "FUNCTION"
+  }
+},
+{
+  "model": "core.departmentmodel",
+  "pk": 4,
+  "fields": {
+    "name": "集团市场部",
+    "parent": null,
+    "manager": 9,
+    "category": "FUNCTION"
+  }
+},
+{
+  "model": "core.departmentmodel",
+  "pk": 5,
+  "fields": {
+    "name": "标准实践实验室",
+    "parent": 3,
+    "manager": null,
+    "category": "LAB"
+  }
+},
+{
+  "model": "core.departmentmodel",
+  "pk": 6,
+  "fields": {
+    "name": "研发中心",
+    "parent": null,
+    "manager": null,
+    "category": "RND"
+  }
+},
+{
+  "model": "core.departmentmodel",
+  "pk": 7,
+  "fields": {
+    "name": "其他部门",
+    "parent": null,
+    "manager": null,
+    "category": "FUNCTION"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 1,
+  "fields": {
+    "name": "助理",
+    "category": "ASSISTANT",
+    "created_at": "2026-01-06T09:50:29.230Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 2,
+  "fields": {
+    "name": "总经理",
+    "category": "MANAGEMENT",
+    "created_at": "2026-01-06T09:53:54.216Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 3,
+  "fields": {
+    "name": "副总经理",
+    "category": "MANAGEMENT",
+    "created_at": "2026-01-06T09:53:54.220Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 4,
+  "fields": {
+    "name": "总监",
+    "category": "MANAGEMENT",
+    "created_at": "2026-01-06T09:53:54.222Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 5,
+  "fields": {
+    "name": "经理",
+    "category": "MANAGEMENT",
+    "created_at": "2026-01-06T09:53:54.223Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 6,
+  "fields": {
+    "name": "销售经理",
+    "category": "SALES",
+    "created_at": "2026-01-06T09:53:54.225Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 7,
+  "fields": {
+    "name": "大客户经理",
+    "category": "SALES",
+    "created_at": "2026-01-06T09:53:54.227Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 8,
+  "fields": {
+    "name": "销售专员",
+    "category": "SALES",
+    "created_at": "2026-01-06T09:53:54.228Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 9,
+  "fields": {
+    "name": "研发工程师",
+    "category": "RND",
+    "created_at": "2026-01-06T09:53:54.230Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 10,
+  "fields": {
+    "name": "前端工程师",
+    "category": "RND",
+    "created_at": "2026-01-06T09:53:54.231Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 11,
+  "fields": {
+    "name": "后端工程师",
+    "category": "RND",
+    "created_at": "2026-01-06T09:53:54.232Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 12,
+  "fields": {
+    "name": "测试工程师",
+    "category": "RND",
+    "created_at": "2026-01-06T09:53:54.233Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 13,
+  "fields": {
+    "name": "研究员",
+    "category": "RESEARCHER",
+    "created_at": "2026-01-06T09:53:54.236Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 14,
+  "fields": {
+    "name": "高级研究员",
+    "category": "RESEARCHER",
+    "created_at": "2026-01-06T09:53:54.240Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 15,
+  "fields": {
+    "name": "市场经理",
+    "category": "MARKETING",
+    "created_at": "2026-01-06T09:53:54.242Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 16,
+  "fields": {
+    "name": "活动策划",
+    "category": "MARKETING",
+    "created_at": "2026-01-06T09:53:54.243Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 17,
+  "fields": {
+    "name": "运营经理",
+    "category": "OPERATION",
+    "created_at": "2026-01-06T09:53:54.244Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 18,
+  "fields": {
+    "name": "运营专员",
+    "category": "OPERATION",
+    "created_at": "2026-01-06T09:53:54.246Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 19,
+  "fields": {
+    "name": "设计师",
+    "category": "DESIGN",
+    "created_at": "2026-01-06T09:53:54.248Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 20,
+  "fields": {
+    "name": "视觉设计",
+    "category": "DESIGN",
+    "created_at": "2026-01-06T09:53:54.249Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 21,
+  "fields": {
+    "name": "系统管理员",
+    "category": "SYSADMIN",
+    "created_at": "2026-01-06T09:53:54.251Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 22,
+  "fields": {
+    "name": "IT支持",
+    "category": "SYSADMIN",
+    "created_at": "2026-01-06T09:53:54.252Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 23,
+  "fields": {
+    "name": "行政助理",
+    "category": "ASSISTANT",
+    "created_at": "2026-01-06T09:53:54.253Z"
+  }
+},
+{
+  "model": "core.jobtitle",
+  "pk": 24,
+  "fields": {
+    "name": "财务助理",
+    "category": "ASSISTANT",
+    "created_at": "2026-01-06T09:53:54.255Z"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 1,
+  "fields": {
+    "user": 2,
+    "phone": "",
+    "department": "SALES",
+    "department_link": 1,
+    "report_to": 1,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "M_GM",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 2,
+  "fields": {
+    "user": 3,
+    "phone": "",
+    "department": "SALES",
+    "department_link": null,
+    "report_to": 2,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "M_MANAGER",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 4,
+  "fields": {
+    "user": 1,
+    "phone": "",
+    "department": "OTHER",
+    "department_link": 7,
+    "report_to": null,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 6,
+  "fields": {
+    "user": 7,
+    "phone": "",
+    "department": "OTHER",
+    "department_link": 1,
+    "report_to": 1,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 7,
+  "fields": {
+    "user": 8,
+    "phone": "",
+    "department": "OTHER",
+    "department_link": null,
+    "report_to": 1,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 8,
+  "fields": {
+    "user": 9,
+    "phone": "",
+    "department": "OTHER",
+    "department_link": 4,
+    "report_to": 1,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 10,
+  "fields": {
+    "user": 11,
+    "phone": "",
+    "department": "OTHER",
+    "department_link": null,
+    "report_to": 3,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "S_AM",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 11,
+  "fields": {
+    "user": 12,
+    "phone": "",
+    "department": "SALES",
+    "department_link": null,
+    "report_to": 2,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "S_AM",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 12,
+  "fields": {
+    "user": 6,
+    "phone": "",
+    "department": "OTHER",
+    "department_link": null,
+    "report_to": 1,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 13,
+  "fields": {
+    "user": 5,
+    "phone": "",
+    "department": "OTHER",
+    "department_link": null,
+    "report_to": 1,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "",
+    "job_level": "P_SPECIALIST"
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 14,
+  "fields": {
+    "user": 13,
+    "phone": "",
+    "department": "GAME",
+    "department_link": null,
+    "report_to": 2,
+    "job_category": "OTHER",
+    "job_rank": "",
+    "job_rank_level": "NORMAL",
+    "job_title": null,
+    "job_position": "M_MANAGER",
+    "job_level": ""
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 16,
+  "fields": {
+    "user": 15,
+    "phone": "",
+    "department": "",
+    "department_link": 5,
+    "report_to": 13,
+    "job_category": "MANAGEMENT",
+    "job_rank": "DIRECTOR",
+    "job_rank_level": "NORMAL",
+    "job_title": 4,
+    "job_position": "总监",
+    "job_level": ""
+  }
+},
+{
+  "model": "core.userprofile",
+  "pk": 17,
+  "fields": {
+    "user": 16,
+    "phone": "",
+    "department": "",
+    "department_link": 1,
+    "report_to": 2,
+    "job_category": "ASSISTANT",
+    "job_rank": "ASSISTANT",
+    "job_rank_level": "NORMAL",
+    "job_title": 1,
+    "job_position": "助理",
+    "job_level": ""
+  }
+}
+]

@@ -1,0 +1,23 @@
+# Build stage
+FROM node:20-slim AS build-stage
+
+WORKDIR /app
+
+# Set TUNA mirror for npm if needed, but usually standard npm is fine in build
+# RUN npm config set registry https://registry.npmmirror.com
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+# Set production API base URL
+ENV VITE_API_BASE_URL=/api
+
+RUN npm run build
+
+# Production stage
+FROM nginx:stable-alpine AS production-stage
+COPY --from=build-stage /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

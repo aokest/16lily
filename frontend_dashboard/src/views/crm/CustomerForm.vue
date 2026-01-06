@@ -95,6 +95,32 @@
               <el-input v-model="form.description" type="textarea" :rows="4" />
           </el-form-item>
 
+          <h3 class="text-lg font-bold text-slate-800 mb-4 pb-2 border-b mt-6">标签</h3>
+          <el-form-item label="选择标签">
+            <el-select v-model="tagIds" multiple filterable style="width: 100%" placeholder="选择或创建标签">
+              <el-option v-for="t in tagOptions" :key="t.id" :label="t.name" :value="t.id" />
+            </el-select>
+          </el-form-item>
+          <div class="flex gap-2">
+            <el-input v-model="newTagName" placeholder="新标签名称" style="width: 220px" />
+            <el-color-picker v-model="newTagColor" />
+            <el-button @click="createTag" :disabled="!newTagName">创建标签</el-button>
+          </div>
+
+          <h3 class="text-lg font-bold text-slate-800 mb-4 pb-2 border-b mt-6">外部ID</h3>
+          <div v-if="isEdit" class="mb-3 flex items-center gap-2">
+            <el-input v-model="extSystem" placeholder="系统名" style="width: 180px" />
+            <el-input v-model="extId" placeholder="外部ID" style="width: 260px" />
+            <el-button @click="addExternalId" :disabled="!extSystem || !extId">添加</el-button>
+          </div>
+          <el-table v-if="isEdit" :data="externalIds" size="small">
+            <el-table-column prop="system_name" label="系统" width="160" />
+            <el-table-column prop="external_id" label="外部ID" />
+            <el-table-column prop="created_at" label="时间" width="180">
+              <template #default="scope">{{ new Date(scope.row.created_at).toLocaleString() }}</template>
+            </el-table-column>
+          </el-table>
+
         </el-form>
       </div>
     </main>
@@ -127,6 +153,11 @@ const form = ref({
     legal_representative: '',
     description: ''
 });
+const tagIds = ref<number[]>([]);
+const tagOptions = ref<any[]>([]);
+const newTagName = ref(''); const newTagColor = ref('#409EFF');
+const externalIds = ref<any[]>([]);
+const extSystem = ref(''); const extId = ref('');
 
 const rules = {
     name: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
@@ -137,9 +168,36 @@ const fetchData = async () => {
     try {
         const res = await api.get(`customers/${id}/`);
         form.value = { ...res.data };
+        tagIds.value = (res.data.tags_detail || []).map((x:any) => x.id);
+        await fetchExternalIds();
     } catch (e) {
         ElMessage.error('获取详情失败');
     }
+};
+const fetchTags = async () => {
+  try{ const res = await api.get('customer-tags/'); tagOptions.value = res.data.results || res.data || []; } catch { tagOptions.value = []; }
+};
+const createTag = async () => {
+  try {
+    const res = await api.post('customer-tags/', { name: newTagName.value, color: newTagColor.value });
+    tagOptions.value = (tagOptions.value || []).concat([res.data]);
+    tagIds.value = tagIds.value.concat([res.data.id]);
+    newTagName.value = '';
+  } catch (e){ ElMessage.error('创建失败'); }
+};
+const fetchExternalIds = async () => {
+  try {
+    const res = await api.get('external-ids/', { params: { entity_type: 'CUSTOMER', object_id: id } });
+    externalIds.value = res.data.results || res.data || [];
+  } catch (e){ externalIds.value = []; }
+};
+const addExternalId = async () => {
+  try {
+    await api.post('external-ids/', { entity_type: 'CUSTOMER', object_id: id, system_name: extSystem.value, external_id: extId.value });
+    extSystem.value=''; extId.value='';
+    await fetchExternalIds();
+    ElMessage.success('已添加外部ID');
+  } catch (e){ ElMessage.error('添加失败'); }
 };
 
 const handleSubmit = async () => {
@@ -149,10 +207,10 @@ const handleSubmit = async () => {
             loading.value = true;
             try {
                 if (isEdit.value) {
-                    await api.patch(`customers/${id}/`, form.value);
+                    await api.patch(`customers/${id}/`, { ...form.value, tag_ids: tagIds.value });
                     ElMessage.success('更新成功');
                 } else {
-                    await api.post('customers/', form.value);
+                    await api.post('customers/', { ...form.value, tag_ids: tagIds.value });
                     ElMessage.success('创建成功');
                 }
                 router.push('/crm/customers');
@@ -167,6 +225,15 @@ const handleSubmit = async () => {
 };
 
 onMounted(() => {
+    fetchTags();
     fetchData();
+    // 预填：来自 query 的初始值（智能体打开原表单场景，仅新建时生效）
+    if (!isEdit.value){
+        const q = route.query as any;
+        if (q.name) form.value.name = String(q.name);
+        if (q.industry) form.value.industry = String(q.industry);
+        if (q.region) form.value.region = String(q.region);
+        if (q.status) form.value.status = String(q.status);
+    }
 });
 </script>

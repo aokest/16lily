@@ -1,7 +1,7 @@
 # 项目全景指南 (Project Guide)
 
-> **最后更新时间**: 2025-12-06
-> **版本**: v0.5.1-beta
+> **最后更新时间**: 2026-01-02
+> **版本**: v1.0.0
 > **说明**: 本文档旨在为 AI 助手和开发人员提供项目的全景视图、文件用途说明及修改注意事项。每次项目结构变更或完成重要功能迭代后，请务必更新本文档。
 
 ## 1. 项目概览 (Overview)
@@ -10,7 +10,7 @@
 
 ### 核心能力
 - **业务管理**: 商机、客户、赛事、市场活动、待办事项的全生命周期管理。
-- **AI 增强**: 对话式填单 (Chat-to-Form)、智能周报生成、自然语言解析。
+- **AI 增强**: 对话式填单 (Chat-to-Form)、智能周报生成、自然语言解析、**项目卡片智能润色**。
 - **数据可视化**: 组织架构全景图、业绩漏斗、实时战报大屏。
 
 ---
@@ -41,7 +41,7 @@
 | `admin.py` | **后台管理逻辑** | 定义了 Admin 的列表页、详情页、过滤器及自定义 Action (如“导出CSV”)。 |
 | `views.py` | **API 视图层** | 包含 `AIAnalysisView` (AI接口)、`DashboardView` (仪表盘数据) 等 DRF 视图。 |
 | `urls.py` | 业务路由 | 定义 `api/` 开头的接口路径。 |
-| `services/ai_service.py` | **AI 服务层** | **核心文件**。封装了调用 DeepSeek/Ollama 的逻辑。包含 `parse_opportunity` 等 Prompt 模板。修改 AI 行为时主要改这里。 |
+| `services/ai_service.py` | **AI 服务层** | **核心文件**。封装了调用 DeepSeek/Ollama 的逻辑。包含 `parse_opportunity` 等 Prompt 模板。**v0.9.0 引入了 Prompt Template 动态管理**。 |
 | `signals.py` | 信号处理 | 处理模型保存前后的自动化逻辑 (如自动计算商机金额、更新日志)。 |
 | `static/core/css/` | 自定义样式 | `custom_admin.css`: 包含“石榴红+金”主题的 CSS 变量覆盖。 |
 | `management/commands/` | 自定义命令 | `init_demo_data.py`: 初始化演示数据脚本。 |
@@ -56,23 +56,23 @@
 | `admin/core/*/kanban.html` | 各类看板视图 (赛事、市场活动)。 |
 
 ### 📂 前端大屏 (`frontend_dashboard/`)
-这是一个独立于 Django 的静态网站，用于大屏展示。
+这是一个基于 Vue 3 + Vite + TypeScript 的现代化前端应用。
 
-| 文件 | 说明 |
+| 目录/文件 | 说明 |
 | :--- | :--- |
-| `index.html` | 战报大屏主页。 |
-| `competitions.html` | 赛事看板大屏。 |
-| `activities.html` | 市场活动看板大屏。 |
-| `lib/` | 包含 Vue.js, ECharts, TailwindCSS 等静态资源。 |
+| `src/views/crm/` | CRM 核心业务 (商机、客户、联系人)。 |
+| `src/views/projects/` | **项目管理模块**。包含 `ProjectBoard` (看板), `ProjectTimeline` (甘特图), `GlobalTimeline` (全局视图)。 |
+| `src/components/` | 公共组件。`CardEditor.vue` (项目卡片编辑器) 位于此处。**v0.9.0 重点重构了交互与 AI 集成**。 |
+| `src/api/` | Axios 封装与后端接口定义。 |
+| `index.html` | Vue 应用入口。 |
 
 ### 📂 文档 (`docs/`)
 | 文件 | 说明 |
 | :--- | :--- |
 | `PROJECT_GUIDE.md` | **本文件**。项目全景说明。 |
-| `CHANGELOG.md` | 版本更新日志。 |
-| `PRODUCT_SPEC.md` | 产品功能说明书。 |
+| `DEBUG_LESSONS.md` | **新文件**。调试经验与教训知识库 (v0.9.0 新增)。 |
+| `ROADMAP.md` | 未来开发计划路线图。 |
 | `TECHNICAL_DOCS.md` | 技术架构文档。 |
-| `ROADMAP.md` | **新文件**。未来开发计划路线图。 |
 
 ---
 
@@ -83,7 +83,8 @@
     - 在 `core/models.py` 的 `AIConfiguration.Provider` 枚举中添加新类型。
     - 在 `core/services/ai_service.py` 的 `_call_llm_json` 方法中配置该模型的 `base_url` 和请求头逻辑。
 2.  **优化 Prompt**:
-    - 直接修改 `core/services/ai_service.py` 中 `parse_xxx` 函数内的 `prompt` 字符串。
+    - **推荐**: 使用 Django Admin 后台的 `PromptTemplate` 模块进行动态配置（v0.9.0 支持）。
+    - 或修改 `core/services/ai_service.py` 中的默认 Prompt。
 3.  **增加新的 AI 填单页面**:
     - 在 `core/admin.py` 中对应的 `ModelAdmin` 类下，设置 `change_form_template = 'admin/core/ai_change_form.html'`。
     - 在 `templates/admin/core/ai_change_form.html` 的 JS 逻辑中添加该模型的字段映射 (`fieldMapping`)。
@@ -99,8 +100,8 @@
 4.  如果涉及老数据兼容，可能需要编写数据迁移脚本。
 
 ### ⚠️ 注意事项 (Caveats)
-1.  **依赖管理**: 尽量保持 `core/services/ai_service.py` 零依赖 (使用 `urllib` 而非 `requests`)，以便在受限环境运行。
-2.  **CSRF 保护**: 前端调用 API 时必须携带 `X-CSRFToken` (参考 `ai_change_form.html` 中的实现)。
+1.  **Docker 同步**: 开发时请注意 Docker Volume 挂载延迟，必要时使用 `docker cp` 强制同步文件（参考 `DEBUG_LESSONS.md`）。
+2.  **CSRF 保护**: 前端调用 API 时必须携带 `X-CSRFToken`。
 3.  **文档同步**: **每轮修改结束后，AI 必须重新阅读并更新本文档 (`docs/PROJECT_GUIDE.md`)，确保文档与代码保持一致。**
 
 ---

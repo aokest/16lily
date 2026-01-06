@@ -1,15 +1,17 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
-from core.models import UserProfile, JobRole
 
 class Command(BaseCommand):
-    help = 'Initialize User Groups and Permissions based on Business Logic'
+    """
+    初始化系统角色和权限组
+    """
+    help = 'Initialize User Groups and Permissions'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS('Starting Role Initialization...'))
+        self.stdout.write(self.style.SUCCESS('开始初始化角色权限...'))
 
-        # 1. Define Groups and Permissions
+        # 定义权限组及其对应的权限
         roles_config = {
             'Group_Sales': {
                 'models': [
@@ -40,9 +42,9 @@ class Command(BaseCommand):
         for group_name, config in roles_config.items():
             group, created = Group.objects.get_or_create(name=group_name)
             if created:
-                self.stdout.write(f"Created group: {group_name}")
+                self.stdout.write(f"创建权限组: {group_name}")
             
-            # Clear existing permissions to ensure strict sync
+            # 清除旧权限重新分配，确保准确
             group.permissions.clear()
 
             for app_label, model_name, actions in config['models']:
@@ -54,42 +56,8 @@ class Command(BaseCommand):
                             perm = Permission.objects.get(content_type=content_type, codename=codename)
                             group.permissions.add(perm)
                         except Permission.DoesNotExist:
-                            self.stdout.write(self.style.WARNING(f"  ! Permission not found: {codename}"))
+                            self.stdout.write(self.style.WARNING(f"  ! 找不到权限条目: {codename}"))
                 except ContentType.DoesNotExist:
-                     self.stdout.write(self.style.ERROR(f"  ! Model not found: {app_label}.{model_name}"))
+                     self.stdout.write(self.style.ERROR(f"  ! 找不到模型: {app_label}.{model_name}"))
         
-        self.stdout.write(self.style.SUCCESS('✅ Roles and Permissions Definitions Updated.'))
-
-        # 2. Sync Existing Users (Fix for users created before rules were set)
-        self.stdout.write(self.style.SUCCESS('🔄 Syncing existing users...'))
-        for profile in UserProfile.objects.all():
-            user = profile.user
-            role = profile.job_role
-            target_group_name = None
-
-            if role in [JobRole.SALES_REP]:
-                target_group_name = 'Group_Sales'
-            elif role in [JobRole.PRODUCT, JobRole.TEST, JobRole.IMPL, JobRole.FRONTEND, JobRole.BACKEND, JobRole.UI, JobRole.PRE_SALES, JobRole.POC]:
-                target_group_name = 'Group_Tech'
-            elif role in [JobRole.LAB_XIAORANG, JobRole.LAB_GAMMA]:
-                target_group_name = 'Group_Lab'
-            elif role in [JobRole.MANAGER]:
-                target_group_name = 'Group_Manager'
-            
-            if target_group_name:
-                try:
-                    group = Group.objects.get(name=target_group_name)
-                    # Only add if not already in group to avoid duplicate db calls (though add is safe)
-                    if not user.groups.filter(name=target_group_name).exists():
-                        user.groups.clear() # Enforce single group policy
-                        user.groups.add(group)
-                        self.stdout.write(f"  -> Assigned {user.username} ({role}) to {target_group_name}")
-                    
-                    if not user.is_staff:
-                        user.is_staff = True
-                        user.save()
-                        self.stdout.write(f"  -> Enabled staff access for {user.username}")
-                except Group.DoesNotExist:
-                    pass
-        
-        self.stdout.write(self.style.SUCCESS('✅ User Sync Completed!'))
+        self.stdout.write(self.style.SUCCESS('✅ 角色权限组初始化完成！'))

@@ -27,6 +27,13 @@ venv/
 env/
 .venv/
 
+# Build and Backups
+*.zip
+*.tar.gz
+backups/
+temp/
+
 # IDE
 .vscode/
 .idea/
+.trae/

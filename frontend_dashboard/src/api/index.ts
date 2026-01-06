@@ -13,7 +13,7 @@ const getApiBase = () => {
 
 const api = axios.create({
     baseURL: getApiBase(),
-    timeout: 10000,
+    timeout: 60000,
 });
 
 // Add Token for requests
@@ -21,15 +21,33 @@ api.interceptors.request.use((config) => {
     const token = localStorage.getItem('auth_token');
     if (token) {
         config.headers.Authorization = `Token ${token}`;
-    } else {
-        // Fallback for Dashboard public access (if needed) or remove it
-        // The dashboard currently relies on AllowAny in backend, so no token is fine for dashboard stats.
-        // But for CRM it will need token.
     }
     return config;
 });
+
+/**
+ * 响应拦截器：统一处理未授权（401）与禁止访问（403）
+ * 清除本地令牌并跳转登录页，避免页面长时间空白或重复失败
+ */
+// Handle Response Errors (e.g., 401/403)
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) {
+            // Clear token and redirect to login for unauthorized/forbidden
+            localStorage.removeItem('auth_token');
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const fetchStats = (params: any) => api.get('dashboard/stats/', { params });
 export const fetchActivities = () => api.get('dashboard/activities/');
 
 export default api;
+
+export const fetchPerformanceReport = (params: any) => api.get('reports/performance/', { params });

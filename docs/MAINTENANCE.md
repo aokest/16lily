@@ -97,3 +97,19 @@ docker-compose -f docker-compose.prod.yml logs -f web
 # 查看 Nginx 日志
 docker-compose -f docker-compose.prod.yml logs -f nginx
 ```
+
+### 4.1 AI 解析诊断（开发环境）
+
+```bash
+docker-compose logs -n 200 web | grep "LLM API Error"
+docker-compose logs -n 200 web | grep "JSON Decode Error"
+docker-compose exec web python manage.py check
+```
+
+## 5. AI 解析问题定位方法
+
+- 确认 `provider/base_url/model_name/api_key` 正确；DeepSeek 推荐 `https://api.deepseek.com/v1` + `deepseek-chat`
+- 若“分析失败”，在“系统工具”点击“测试模型连接”，记录返回；同时查看后端日志：
+  - `LLM API Error`: 说明接口返回非 2xx 或鉴权问题
+  - `JSON Decode Error`: 说明模型未返回纯 JSON，需收紧提示词或启用函数调用
+- 临时解决：系统会自动进行兜底填表，保证流程不中断；管理员后续修复解析并更新提示词模板
