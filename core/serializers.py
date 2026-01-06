@@ -565,6 +565,12 @@ class AIConfigurationSerializer(serializers.ModelSerializer):
         fields = ['id','name','provider','api_key','base_url','model_name','is_active','supports_vision','updated_at']
         read_only_fields = ['updated_at']
 
+    def validate_provider(self, value):
+        """
+        将提供商代码统一转为大写，以匹配模型中的 Choice 定义
+        """
+        return value.upper()
+
 from .models import Project, ProjectCard
 
 class ProjectCardSerializer(serializers.ModelSerializer):

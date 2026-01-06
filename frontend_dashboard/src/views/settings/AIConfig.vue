@@ -64,12 +64,12 @@
         </el-form-item>
         <el-form-item label="提供商">
           <el-select v-model="form.provider" placeholder="选择厂商">
-            <el-option label="OpenAI (兼容)" value="openai" />
-            <el-option label="DeepSeek" value="deepseek" />
-            <el-option label="Google Gemini" value="gemini" />
-            <el-option label="Anthropic Claude" value="anthropic" />
-            <el-option label="Azure OpenAI" value="azure" />
-            <el-option label="Ollama (本地)" value="ollama" />
+            <el-option label="OpenAI (兼容)" value="OPENAI" />
+            <el-option label="DeepSeek" value="DEEPSEEK" />
+            <el-option label="Google Gemini" value="GEMINI" />
+            <el-option label="Anthropic Claude" value="ANTHROPIC" />
+            <el-option label="Azure OpenAI" value="AZURE" />
+            <el-option label="Ollama (本地)" value="OLLAMA" />
           </el-select>
         </el-form-item>
         <el-form-item label="模型名称">
