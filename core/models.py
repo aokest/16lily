@@ -31,7 +31,7 @@ class AIConfiguration(models.Model):
     provider = models.CharField(max_length=20, choices=Provider.choices, default=Provider.DEEPSEEK, verbose_name='服务提供商')
     
     # User ownership (Null means system-wide config)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='ai_configs', verbose_name='所属用户')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='ai_configs', verbose_name='创建人')
     
     api_key = models.CharField(max_length=200, verbose_name='API Key')
     base_url = models.CharField(max_length=200, verbose_name='API Base URL', blank=True, help_text='如果是OpenAI兼容接口，请填写Base URL，例如：https://api.deepseek.com/v1')

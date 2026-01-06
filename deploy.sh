@@ -99,12 +99,14 @@ EOT
 
     # 5. 启动并构建容器 (强制无缓存构建以彻底剔除 Mock 数据)
      echo "🏗️ 正在强制无缓存重新构建镜像..."
-     docker compose -f docker-compose.prod.yml build --no-cache
-     echo "🚀 正在启动容器..."
-     docker compose -f docker-compose.prod.yml up -d --force-recreate
-     echo "🔄 强制重启后端服务以确保代码生效..."
-     docker compose -f docker-compose.prod.yml restart web
-    
+     docker compose -f docker-compose.prod.yml build --no-cache# 5. 重启容器
+      echo "🚀 正在强制构建并重启容器 (无缓存模式)..."
+      docker compose -f docker-compose.prod.yml pull
+      docker compose -f docker-compose.prod.yml build --no-cache
+      docker compose -f docker-compose.prod.yml up -d --force-recreate
+      
+      echo "🔄 强制重启后端服务..."
+      docker compose -f docker-compose.prod.yml restart web   
     # 6. 等待后端启动
     echo "⏳ 等待后端服务启动 (15s)..."
     sleep 15
