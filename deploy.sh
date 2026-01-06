@@ -56,24 +56,26 @@ fi
 # --- 3. 远程部署 (彻底清理模式) ---
 echo "🚀 正在远程清理并重新启动..."
 ssh $SERVER_USER@$SERVER_IP << 'EOF'
-    # 1. 停止并彻底删除旧容器、镜像和数据卷
+    # 1. 停止容器 (保留数据卷以保护核心数据)
     if [ -d "/opt/16lily" ]; then
         cd /opt/16lily
-        echo "🛑 正在停止并清理旧容器与数据卷..."
-        docker compose -f docker-compose.prod.yml down -v --rmi local 2>/dev/null
+        echo "🛑 正在停止容器 (保留数据卷)..."
+        docker compose -f docker-compose.prod.yml down 2>/dev/null
     fi
 
-    # 2. 强力清空远程目录
-    echo "🗑️ 正在清空远程目录 /opt/16lily ..."
-    rm -rf /opt/16lily
+    # 2. 准备更新目录
+    echo "📂 正在准备代码更新目录 (保护 .env.prod 和数据库卷)..."
+    # 严格保护 postgres_data 目录 (核心数据库文件所在处)
+    find /opt/16lily -maxdepth 1 ! -name '.env.prod' ! -name 'postgres_data' ! -name 'docker-data' ! -name '.' -exec rm -rf {} + 2>/dev/null
+    rm -rf /opt/16lily/docker-data/nginx/html/* 2>/dev/null
     mkdir -p /opt/16lily
     
     # 3. 移动新包并解压
     if [ -f "/tmp/project.zip" ]; then
         mv /tmp/project.zip /opt/16lily/
         cd /opt/16lily
-        echo "📦 正在解压新版本..."
-        unzip -q project.zip
+        echo "📦 正在解压新版本代码..."
+        unzip -o -q project.zip
     else
         echo "❌ 错误: 未在 /tmp 找到上传的 project.zip"
         exit 1
@@ -95,40 +97,44 @@ SQL_PORT=5432
 EOT
     fi
 
-    # 5. 启动服务
-    echo "🏗️ 正在构建并启动新容器..."
-    docker compose -f docker-compose.prod.yml up -d --build
+    # 5. 启动并构建容器 (强制无缓存构建以彻底剔除 Mock 数据)
+     echo "🏗️ 正在强制无缓存重新构建镜像..."
+     docker compose -f docker-compose.prod.yml build --no-cache
+     echo "🚀 正在启动容器..."
+     docker compose -f docker-compose.prod.yml up -d --force-recreate
     
-    # 6. 等待数据库就绪
-    echo "⏳ 等待数据库初始化 (10s)..."
-    sleep 10
+    # 6. 等待后端启动
+    echo "⏳ 等待后端服务启动 (15s)..."
+    sleep 15
 
     # 7. 初始化数据库
-    WEB_CONTAINER=$(docker compose -f docker-compose.prod.yml ps -q web)
+    # 使用更通用的方式获取 web 容器 ID
+    WEB_CONTAINER=$(docker ps --format "{{.Names}}" | grep "web" | head -n 1)
     if [ -n "$WEB_CONTAINER" ]; then
+        echo "🔎 找到 Web 容器: $WEB_CONTAINER"
+        echo "🧹 正在精准清理业务脏数据 (保留用户/部门/岗位)..."
+        docker exec $WEB_CONTAINER python clean_business_data.py
+        
         echo "⚙️ 执行数据库迁移..."
         docker exec $WEB_CONTAINER python manage.py migrate
         
         echo "👤 创建初始管理员 (admin/admin123456)..."
-        docker exec $WEB_CONTAINER python manage.py shell -c "
-from django.contrib.auth.models import User
-if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser('admin', 'admin@example.com', 'admin123456')
-    print('Admin created successfully.')
-else:
-    u = User.objects.get(username='admin')
-    u.set_password('admin123456')
-    u.is_superuser = True
-    u.is_staff = True
-    u.save()
-    print('Admin password reset.')
-"
+        docker exec $WEB_CONTAINER python manage.py shell -c "from django.contrib.auth.models import User; u=User.objects.filter(username='admin').first(); u.set_password('admin123456') if u else User.objects.create_superuser('admin', 'admin@example.com', 'admin123456'); u.save() if u else None"
         
         # 导入组织架构种子数据 (如果存在)
         if [ -f "core_structure_seed.json" ]; then
             echo "🌱 导入组织架构种子数据..."
-            # 忽略由于数据冲突导致的错误，确保脚本继续
             docker exec $WEB_CONTAINER python manage.py loaddata core_structure_seed.json || echo "⚠️ 种子数据导入有冲突，已跳过。"
+        fi
+
+        echo "🔍 验证后端 API 返回数据..."
+        TOKEN=$(docker exec $WEB_CONTAINER python manage.py shell -c "from rest_framework.authtoken.models import Token; from django.contrib.auth.models import User; u=User.objects.get(username='admin'); t,_=Token.objects.get_or_create(user=u); print(t.key)")
+        API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Token $TOKEN" http://localhost:8000/api/dashboard/stats/)
+        if [ "$API_STATUS" == "200" ]; then
+            STATS=$(curl -s -H "Authorization: Token $TOKEN" http://localhost:8000/api/dashboard/stats/)
+            echo "✅ API 响应正常: $STATS"
+        else
+            echo "❌ API 响应异常, 状态码: $API_STATUS"
         fi
 
         echo "✅ 部署与初始化全部完成！"
@@ -137,4 +143,4 @@ else:
     fi
 EOF
 
-echo "✨ 所有操作已完成。"
+echo "✨ 所有操作已完成。请在浏览器中强制刷新 (Ctrl+F5) 查看效果。"

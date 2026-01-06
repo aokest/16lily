@@ -189,29 +189,72 @@ class DashboardViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='stats')
     def get_stats(self, request):
-        # 1. Pipeline Stats (Opportunity)
-        total_opps = Opportunity.objects.count()
-        total_amount = Opportunity.objects.aggregate(Sum('amount'))['amount__sum'] or 0
-        
-        # 2. Project Stats
-        from .models import Project
-        total_projects = Project.objects.count()
-        active_projects = Project.objects.exclude(status='COMPLETED').count()
-        
-        # 3. Monthly New Opps
-        from django.utils import timezone
-        now = timezone.now()
-        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        monthly_opps = Opportunity.objects.filter(created_at__gte=start_of_month).count()
-        
-        return Response({
-            'total_opportunities': total_opps,
-            'total_budget': total_amount,  # Keep the key for frontend compatibility
-            'total_projects': total_projects,
-            'active_projects': active_projects,
-            'monthly_new_opportunities': monthly_opps,
-            'update_time': now.isoformat()
-        })
+        try:
+            # 1. Pipeline Stats (Opportunity)
+            total_opps = Opportunity.objects.count()
+            total_amount = Opportunity.objects.aggregate(Sum('amount'))['amount__sum'] or 0
+            
+            # 2. Project Stats
+            from .models import Project, DailyReport, Customer, Notification
+            total_projects = Project.objects.count()
+            active_projects = Project.objects.exclude(status='COMPLETED').count()
+            
+            # 3. Monthly New Opps
+            from django.utils import timezone
+            now = timezone.now()
+            start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            monthly_opps = Opportunity.objects.filter(created_at__gte=start_of_month).count()
+            
+            # 4. Personal Center Stats (Frontend compatibility)
+            from .models import PerformanceTarget
+            
+            # 计算部门已完成
+            dept_achieved = Opportunity.objects.filter(stage='CLOSED_WON').aggregate(Sum('amount'))['amount__sum'] or 0
+            # 获取部门目标
+            dept_target = PerformanceTarget.objects.filter(
+                year=now.year, month=now.month, target_type='SALES'
+            ).aggregate(Sum('target_revenue'))['target_revenue__sum'] or 0
+            
+            # 个人统计
+            personal_achieved = 0
+            personal_target = 0
+            todo_count = 0
+            daily_report_count = 0
+            
+            if request.user.is_authenticated:
+                personal_achieved = Opportunity.objects.filter(
+                    sales_manager=request.user, stage='CLOSED_WON'
+                ).aggregate(Sum('amount'))['amount__sum'] or 0
+                personal_target = PerformanceTarget.objects.filter(
+                    user=request.user, year=now.year, month=now.month, target_type='SALES'
+                ).aggregate(Sum('target_revenue'))['target_revenue__sum'] or 0
+                todo_count = Notification.objects.filter(user=request.user, is_read=False).count()
+                daily_report_count = DailyReport.objects.filter(creator=request.user).count()
+
+            return Response({
+                'total_opportunities': total_opps,
+                'total_budget': total_amount,
+                'total_projects': total_projects,
+                'active_projects': active_projects,
+                'monthly_new_opportunities': monthly_opps,
+                'update_time': now.isoformat(),
+                
+                'deptTarget': dept_target,
+                'deptAchieved': dept_achieved,
+                'personalTarget': personal_target,
+                'personalAchieved': personal_achieved,
+                'todoCount': todo_count,
+                'ongoingProjects': active_projects,
+                'dailyReportCount': daily_report_count,
+                'totalCustomers': Customer.objects.count()
+            })
+        except Exception as e:
+            # 即使报错也要返回 0，确保前端不崩溃
+            return Response({
+                'deptTarget': 0, 'deptAchieved': 0, 'personalTarget': 0, 'personalAchieved': 0,
+                'todoCount': 0, 'ongoingProjects': 0, 'dailyReportCount': 0, 'totalCustomers': 0,
+                'error': str(e)
+            })
 
     @action(detail=False, methods=['get'], url_path='activities')
     def get_activities(self, request):

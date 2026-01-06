@@ -13,13 +13,13 @@
           <div class="flex-1 flex flex-col justify-center space-y-6 p-6">
             <div class="flex justify-between items-baseline">
               <span class="text-slate-500 text-base">目标金额</span>
-              <span class="text-2xl font-bold text-slate-800">¥ 5,000,000</span>
+              <span class="text-2xl font-bold text-slate-800">¥ {{ formatNumber(dashboardStats.deptTarget) }}</span>
             </div>
             <div class="flex justify-between items-baseline">
               <span class="text-slate-500 text-base">已完成</span>
-              <span class="text-2xl font-bold text-green-600">¥ 3,250,000</span>
+              <span class="text-2xl font-bold text-green-600">¥ {{ formatNumber(dashboardStats.deptAchieved) }}</span>
             </div>
-            <el-progress :percentage="65" :stroke-width="12" :format="formatPercentage" status="success" />
+            <el-progress :percentage="calculatePercentage(dashboardStats.deptAchieved, dashboardStats.deptTarget)" :stroke-width="12" :format="formatPercentage" status="success" />
           </div>
         </el-card>
       </el-col>
@@ -36,13 +36,13 @@
           <div class="flex-1 flex flex-col justify-center space-y-6 p-6">
             <div class="flex justify-between items-baseline">
               <span class="text-slate-500 text-base">个人目标</span>
-              <span class="text-2xl font-bold text-slate-800">¥ 1,000,000</span>
+              <span class="text-2xl font-bold text-slate-800">¥ {{ formatNumber(dashboardStats.personalTarget) }}</span>
             </div>
             <div class="flex justify-between items-baseline">
               <span class="text-slate-500 text-base">当前预测</span>
-              <span class="text-2xl font-bold text-blue-600">¥ 850,000</span>
+              <span class="text-2xl font-bold text-blue-600">¥ {{ formatNumber(dashboardStats.personalForecast) }}</span>
             </div>
-            <el-progress :percentage="85" :stroke-width="12" :format="formatPercentage" />
+            <el-progress :percentage="calculatePercentage(dashboardStats.personalForecast, dashboardStats.personalTarget)" :stroke-width="12" :format="formatPercentage" />
           </div>
         </el-card>
       </el-col>
@@ -140,8 +140,8 @@
           <template #header>
             <div class="flex justify-between items-center">
               <span class="font-bold text-lg">待办事项</span>
-              <el-badge :value="3" class="item" type="danger">
-                <el-button link class="!text-sm !text-blue-600 hover:!underline !font-medium">待办中心</el-button>
+              <el-badge :value="approvalList.length" class="item" type="danger" :hidden="approvalList.length === 0">
+                <el-button link class="!text-sm !text-blue-600 hover:!underline !font-medium" @click="$router.push('/approvals')">待办中心</el-button>
               </el-badge>
             </div>
           </template>
@@ -287,6 +287,56 @@ import { ElMessage } from 'element-plus';
 const activeTab = ref('approvals');
 const projectList = ref<any[]>([]);
 const loadingProjects = ref(false);
+const approvalList = ref<any[]>([]);
+
+// Dashboard Stats
+const dashboardStats = reactive({
+    deptTarget: 0,
+    deptAchieved: 0,
+    personalTarget: 0,
+    personalForecast: 0,
+    todoCount: 0,
+    ongoingProjects: 0,
+    dailyReportCount: 0,
+    totalCustomers: 0
+});
+
+function formatNumber(num: number) {
+    return new Intl.NumberFormat().format(num);
+}
+
+function calculatePercentage(current: number, target: number) {
+    if (!target || target === 0) return 0;
+    const p = Math.round((current / target) * 100);
+    return p > 100 ? 100 : p;
+}
+
+async function fetchDashboardStats() {
+    try {
+        const res = await api.get('dashboard/stats/');
+        const data = res.data;
+        dashboardStats.deptTarget = data.dept_target || 0;
+        dashboardStats.deptAchieved = data.dept_achieved || 0;
+        dashboardStats.personalTarget = data.personal_target || 0;
+        dashboardStats.personalForecast = data.personal_forecast || 0;
+    } catch (e) {
+        console.error("Failed to fetch dashboard stats", e);
+    }
+}
+
+async function fetchApprovals() {
+    try {
+        const res = await api.get('approvals/pending/');
+        const list = res.data.results || res.data;
+        approvalList.value = list.map((a: any) => ({
+            id: a.id,
+            title: a.reason || a.title || '无标题申请',
+            applicant: a.applicant_name || a.applicant
+        }));
+    } catch (e) {
+        console.error("Failed to fetch approvals", e);
+    }
+}
 
 // Daily Reports
 const dailyReports = ref<any[]>([]);
@@ -491,27 +541,12 @@ async function publishMessage() {
 
 
 // Mock Data for Todo List (Refactored from hardcoded HTML)
-const approvalList = ref<any[]>([]);
 
 // Refresh icons after approvals list changes
 watch([approvalList], async () => {
     await nextTick();
     createIcons({ icons });
 });
-
-async function fetchApprovals() {
-    try {
-        const res = await api.get('approvals/');
-        const list = res.data.results || res.data;
-        approvalList.value = list.map((a: any) => ({
-            id: a.id,
-            title: a.reason || '无标题申请',
-            applicant: a.applicant_name
-        }));
-    } catch (e) {
-        console.error("Failed to fetch approvals", e);
-    }
-}
 
 const formatPercentage = (percentage: number) => {
   return `${percentage}%`;
@@ -539,9 +574,11 @@ async function fetchProjects() {
 onMounted(() => {
     fetchProjects();
     fetchDailyReports();
+    fetchDashboardStats();
     fetchApprovals();
-    loadMessages();
-    // Initialize icons
+    fetchNotifications();
+    
+    // Initialize Lucide icons
     createIcons({ icons });
 });
 </script>

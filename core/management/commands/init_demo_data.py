@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
-from core.models import Opportunity, OpportunityLog, PerformanceTarget, Department
+from core.models import Opportunity, OpportunityLog, PerformanceTarget, DepartmentModel as Department
 from django.utils import timezone
 import random
 from decimal import Decimal
