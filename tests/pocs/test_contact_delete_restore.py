@@ -5,8 +5,8 @@
 - 验证 `DELETE /contacts/{id}/` 会记录删除日志；管理员可 `POST /contacts/restore/` 恢复
 
 关联代码参考:
-- 视图: [views.py:ContactViewSet.perform_destroy](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L280-L295)
-- 视图: [views.py:ContactViewSet.restore](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L296-L310)
+- 视图: [views.py:ContactViewSet.perform_destroy](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L280-L295)
+- 视图: [views.py:ContactViewSet.restore](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L296-L310)
 """
 
 import json

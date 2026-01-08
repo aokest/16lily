@@ -14,11 +14,11 @@ Docker 容器的文件卷挂载（Volume Mount）存在同步延迟或失效的�
 1.  在宿主机修改代码。
 2.  使用 `docker cp` 命令强制将修改后的文件复制到容器内：
     ```bash
-    docker cp "frontend_dashboard/src/components/CardEditor.vue" opportunity_system-dashboard-1:/app/src/components/CardEditor.vue
+    docker cp "frontend_dashboard/src/components/CardEditor.vue" 16lily-dashboard-1:/app/src/components/CardEditor.vue
     ```
 3.  重启容器以触发 Vite 重新加载：
     ```bash
-    docker restart opportunity_system-dashboard-1
+    docker restart 16lily-dashboard-1
     ```
 
 ### 预防措施
@@ -81,17 +81,17 @@ Docker 容器的文件卷挂载（Volume Mount）存在同步延迟或失效的�
 
 ### 1. 项目状态与阶段维护优化
 **改进点**：
-- 更新了 [models.py](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/core/models.py) 中 `Project` 模型的 `Stage` 类，将“回款推进中”标签更新为更准确的“已经回款”，以匹配实际业务流程。
-- 同步更新了 [ProjectBoard.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/views/projects/ProjectBoard.vue) 中的阶段选项，确保前后端一致。
+- 更新了 [models.py](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/core/models.py) 中 `Project` 模型的 `Stage` 类，将“回款推进中”标签更新为更准确的“已经回款”，以匹配实际业务流程。
+- 同步更新了 [ProjectBoard.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/views/projects/ProjectBoard.vue) 中的阶段选项，确保前后端一致。
 
 ### 2. 卡片编辑器（CardEditor）深度改进
 **核心修复**：
-- **解决 Prop 直接修改问题**：在 [CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/components/CardEditor.vue) 中引入了 `localCardData` 响应式副本。现在，子项目阶段和进度的修改首先作用于本地副本，仅在点击“保存”时才会通过 `emit` 同步到父组件，遵循了 Vue 的单向数据流原则。
+- **解决 Prop 直接修改问题**：在 [CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/components/CardEditor.vue) 中引入了 `localCardData` 响应式副本。现在，子项目阶段和进度的修改首先作用于本地副本，仅在点击“保存”时才会通过 `emit` 同步到父组件，遵循了 Vue 的单向数据流原则。
 - **预览增强**：在卡片预览区域（左侧）增加了子项目阶段标签和进度条显示，用户可以直观地看到当前卡片的执行状态。
 
 ### 3. “新增卡片”交互优化
 **体验提升**：
-- **独立页面打开**：在 [ProjectBoard.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/views/projects/ProjectBoard.vue) 中，点击“新增卡片”现在会直接在独立新窗口中打开编辑器，而不是在侧边栏弹出，提供了更宽阔的编辑视野。
+- **独立页面打开**：在 [ProjectBoard.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/views/projects/ProjectBoard.vue) 中，点击“新增卡片”现在会直接在独立新窗口中打开编辑器，而不是在侧边栏弹出，提供了更宽阔的编辑视野。
 - **防止拦截逻辑**：优化了新窗口打开逻辑，通过先打开空白页再跳转的方式，有效减少了被浏览器广告拦截器误拦截的概率。
 - **组件精简**：从项目看板页面移除了不再使用的弹窗式编辑器代码，使页面逻辑更加纯粹，专注于数据展示。
 

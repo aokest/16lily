@@ -5,7 +5,7 @@
 - 验证 `POST /daily-reports/{id}/polish/` 能正确写入 `polished_content`
 
 关联代码参考:
-- 视图集: [views.py:DailyReportViewSet.polish](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L754-L786)
+- 视图集: [views.py:DailyReportViewSet.polish](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L754-L786)
 """
 
 import json

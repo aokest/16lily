@@ -27,8 +27,8 @@
   - 作用域：主标题下分隔线与各 Section 标题下分隔线
 
 参数与代码映射：
-- 入口文件：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/components/CardEditor.vue)
-- Section 样式组件：[CardSection.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/components/CardSection.vue)
+- 入口文件：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/components/CardEditor.vue)
+- Section 样式组件：[CardSection.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/components/CardSection.vue)
 
 ## 主题系统与可见性策略
 - 下拉菜单统一使用 Teleport + 绝对定位，避免父容器 overflow 裁剪

@@ -265,7 +265,7 @@
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { createIcons, icons } from 'lucide';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '../../api';
 
 const router = useRouter();
@@ -440,13 +440,17 @@ const stats = computed(() => {
 
 // Filtered Projects
 const filteredProjects = computed(() => {
+  if (!projects.value) return [];
+  
   return projects.value.filter(p => {
     // Status Filter
-    if (statusFilter.value !== 'all') {
-      const pStatus = p.status.toLowerCase();
+    if (statusFilter.value && statusFilter.value !== 'all') {
+      const pStatus = (p.status || '').toLowerCase();
       const filter = statusFilter.value.toLowerCase();
-      if (filter === 'active' && (pStatus === 'in_progress' || pStatus === 'active')) {
-        // match
+      
+      // 特殊处理：前端 'active' 对应后端的 'in_progress'
+      if (filter === 'active') {
+        if (pStatus !== 'in_progress' && pStatus !== 'active') return false;
       } else if (pStatus !== filter) {
         return false;
       }
@@ -455,10 +459,10 @@ const filteredProjects = computed(() => {
     // Search Filter
     if (searchQuery.value) {
       const q = searchQuery.value.toLowerCase();
-      const matchName = p.name?.toLowerCase().includes(q);
-      const matchCode = p.code?.toLowerCase().includes(q);
-      const matchCust = p.customer_name?.toLowerCase().includes(q);
-      const matchOpp = p.opportunity_name?.toLowerCase().includes(q);
+      const matchName = (p.name || '').toLowerCase().includes(q);
+      const matchCode = (p.code || '').toLowerCase().includes(q);
+      const matchCust = (p.customer_name || '').toLowerCase().includes(q);
+      const matchOpp = (p.opportunity_name || '').toLowerCase().includes(q);
       if (!matchName && !matchCode && !matchCust && !matchOpp) return false;
     }
     
@@ -570,7 +574,31 @@ function getProjectCardCount(projectId: any) {
   return cards.value.filter(c => c.project === projectId).length;
 }
 
-function navigateToProject(id: any) {
+async function handleDeleteProject(project: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除项目 "${project.name}" 吗？此操作不可逆，且可能关联删除相关数据。`,
+      '删除确认',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    );
+
+    await api.delete(`projects/${project.id}/`);
+    ElMessage.success('项目删除成功');
+    await loadData(); // 刷新列表
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Delete project failed:', error);
+      ElMessage.error('删除失败，请稍后重试');
+    }
+  }
+}
+
+function navigateToProject(id: number) {
   router.push(`/projects/${id}`);
 }
 </script>

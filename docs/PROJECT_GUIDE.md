@@ -17,7 +17,7 @@
 
 ## 2. 目录结构与文件说明 (Directory Map)
 
-### 📂 根目录 (`opportunity_system/`)
+### 📂 根目录 (`16lily/`)
 | 文件/目录 | 说明 | 注意事项 |
 | :--- | :--- | :--- |
 | `manage.py` | Django 命令行入口 | 用于运行服务、迁移数据库 (`migrate`)、创建用户等。 |

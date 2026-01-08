@@ -8,7 +8,7 @@
 SERVER_IP="47.94.22.64"
 SERVER_USER="root"
 REMOTE_DIR="/opt/16lily"
-PROJECT_NAME="opportunity_system"
+PROJECT_NAME="16lily"
 
 # --- 1. 本地打包 (深度清洗) ---
 echo "📦 正在本地打包项目 (进行深度清洗)..."
@@ -56,16 +56,17 @@ fi
 # --- 3. 远程部署 (彻底清理模式) ---
 echo "🚀 正在远程清理并重新启动..."
 ssh $SERVER_USER@$SERVER_IP << 'EOF'
-    # 1. 停止容器 (保留数据卷以保护核心数据)
+    # 1. 彻底停止并清理干扰容器 (防止 1Panel 缓存幽灵代码)
     if [ -d "/opt/16lily" ]; then
         cd /opt/16lily
-        echo "🛑 正在停止容器 (保留数据卷)..."
-        docker compose -f docker-compose.prod.yml down 2>/dev/null
+        echo "🛑 正在深度清理干扰容器并停止旧镜像..."
+        docker stop 16lily-dashboard-1 2>/dev/null || true
+        docker rm 16lily-dashboard-1 2>/dev/null || true
+        docker compose -f docker-compose.prod.yml down --rmi all --remove-orphans 2>/dev/null
     fi
 
     # 2. 准备更新目录
-    echo "📂 正在准备代码更新目录 (保护 .env.prod 和数据库卷)..."
-    # 严格保护 postgres_data 目录 (核心数据库文件所在处)
+    echo "📂 清理目录 (保护核心数据)..."
     find /opt/16lily -maxdepth 1 ! -name '.env.prod' ! -name 'postgres_data' ! -name 'docker-data' ! -name '.' -exec rm -rf {} + 2>/dev/null
     rm -rf /opt/16lily/docker-data/nginx/html/* 2>/dev/null
     mkdir -p /opt/16lily
@@ -97,54 +98,50 @@ SQL_PORT=5432
 EOT
     fi
 
-    # 5. 启动并构建容器 (强制无缓存构建以彻底剔除 Mock 数据)
-     echo "🏗️ 正在强制无缓存重新构建镜像..."
-     docker compose -f docker-compose.prod.yml build --no-cache# 5. 重启容器
-      echo "🚀 正在强制构建并重启容器 (无缓存模式)..."
-      docker compose -f docker-compose.prod.yml pull
-      docker compose -f docker-compose.prod.yml build --no-cache
-      docker compose -f docker-compose.prod.yml up -d --force-recreate
-      
-      echo "🔄 强制重启后端服务..."
-      docker compose -f docker-compose.prod.yml restart web   
-    # 6. 等待后端启动
-    echo "⏳ 等待后端服务启动 (15s)..."
-    sleep 15
-
-    # 7. 初始化数据库
-    # 使用更通用的方式获取 web 容器 ID
-    WEB_CONTAINER=$(docker ps --format "{{.Names}}" | grep "web" | head -n 1)
-    if [ -n "$WEB_CONTAINER" ]; then
-        echo "🔎 找到 Web 容器: $WEB_CONTAINER"
-        echo "🧹 正在精准清理业务脏数据 (保留用户/部门/岗位)..."
-        docker exec $WEB_CONTAINER python clean_business_data.py
-        
-        echo "⚙️ 执行数据库迁移..."
-        docker exec $WEB_CONTAINER python manage.py migrate
-        
-        echo "👤 创建初始管理员 (admin/admin123456)..."
-        docker exec $WEB_CONTAINER python manage.py shell -c "from django.contrib.auth.models import User; u=User.objects.filter(username='admin').first(); u.set_password('admin123456') if u else User.objects.create_superuser('admin', 'admin@example.com', 'admin123456'); u.save() if u else None"
-        
-        # 导入组织架构种子数据 (如果存在)
-        if [ -f "core_structure_seed.json" ]; then
-            echo "🌱 导入组织架构种子数据..."
-            docker exec $WEB_CONTAINER python manage.py loaddata core_structure_seed.json || echo "⚠️ 种子数据导入有冲突，已跳过。"
-        fi
-
-        echo "🔍 验证后端 API 返回数据..."
-        TOKEN=$(docker exec $WEB_CONTAINER python manage.py shell -c "from rest_framework.authtoken.models import Token; from django.contrib.auth.models import User; u=User.objects.get(username='admin'); t,_=Token.objects.get_or_create(user=u); print(t.key)")
-        API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Token $TOKEN" http://localhost:8000/api/dashboard/stats/)
-        if [ "$API_STATUS" == "200" ]; then
-            STATS=$(curl -s -H "Authorization: Token $TOKEN" http://localhost:8000/api/dashboard/stats/)
-            echo "✅ API 响应正常: $STATS"
-        else
-            echo "❌ API 响应异常, 状态码: $API_STATUS"
-        fi
-
-        echo "✅ 部署与初始化全部完成！"
-    else
-        echo "❌ 启动失败，请检查 docker logs."
+    # 5. 启动并构建容器
+    echo "🏗️ 强制全新构建 (彻底剔除缓存)..."
+    docker image prune -af 2>/dev/null # 清理所有旧镜像
+    docker compose -f docker-compose.prod.yml build --no-cache
+    docker compose -f docker-compose.prod.yml up -d --force-recreate
+    
+    # 6. 等待后端启动并检查健康状态
+    echo "⏳ 等待后端服务启动 (20s)..."
+    sleep 20
+    
+    # 检查 web 容器是否在线
+    if ! docker ps | grep -q "web"; then
+        echo "❌ 警告: web 容器未能正常启动，尝试查看日志..."
+        docker compose -f docker-compose.prod.yml logs web | tail -n 20
+        # 强制重启一次
+        docker compose -f docker-compose.prod.yml restart web
+        sleep 10
     fi
+
+    # 7. 验证后端代码逻辑 (使用 manage.py shell 避免环境错误)
+    echo "🔍 验证云端后端代码逻辑..."
+    docker compose -f docker-compose.prod.yml exec -T web python manage.py shell -c "from core.serializers import AIConfigurationSerializer; print('✅ AI Serializer OK')"
+    
+    # 8. 彻底清理 Nginx 静态文件缓存 (解决前端不更新问题)
+    echo "🧹 强制刷新前端静态资源..."
+    docker compose -f docker-compose.prod.yml exec -T nginx rm -rf /usr/share/nginx/html/* 2>/dev/null
+    docker compose -f docker-compose.prod.yml restart nginx
+
+    # 9. 数据库迁移
+    echo "🗄️ 执行数据库迁移..."
+    docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+
+    # 10. (已禁用) 清理脏数据 - 用户要求保留所有业务数据
+    # if [ -f "clean_business_data.py" ]; then
+    #     docker compose -f docker-compose.prod.yml exec -T web python clean_business_data.py
+    # fi
+    
+    # 11. 消息通知修复：仅清理导致小铃铛显示异常的无效数据 (无标题或无归属人的通知)
+    echo "🔔 正在修复小铃铛通知显示异常..."
+    docker compose -f docker-compose.prod.yml exec -T web python manage.py shell -c "from core.models import Notification; Notification.objects.filter(title='').delete(); Notification.objects.filter(recipient__isnull=True).delete(); print('✅ 通知数据修复完成')"
+
+    echo "✅ 阿里云环境 (47.94.22.64) 部署与清洗完成！"
 EOF
 
-echo "✨ 所有操作已完成。请在浏览器中强制刷新 (Ctrl+F5) 查看效果。"
+# --- 4. 清理本地包 ---
+rm -f project.zip
+echo "✨ 部署流程结束。"

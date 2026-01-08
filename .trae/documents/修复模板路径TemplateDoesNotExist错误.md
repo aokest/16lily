@@ -3,11 +3,11 @@
 从报错截图来看：
 Django 尝试加载的路径包括：
 
-1. `.../opportunity_system/templates/admin/core/todotask/change_list.html` (Source does not exist)
+1. `.../16lily/templates/admin/core/todotask/change_list.html` (Source does not exist)
 2. Jazzmin 的内置路径
 3. Django Admin 的内置路径
 
-但它**没有**去查找 `.../opportunity_system/backend/templates/admin/core/todotask/change_list.html`。
+但它**没有**去查找 `.../16lily/backend/templates/admin/core/todotask/change_list.html`。
 
 这说明 `backend/settings.py` 中的 `TEMPLATES` 配置里的 `DIRS` 没有正确指向 `backend/templates`，或者该目录不在查找范围内。
 
@@ -17,12 +17,12 @@ Django 尝试加载的路径包括：
 
    * 查看 `TEMPLATES` 配置，确保 `os.path.join(BASE_DIR, 'backend', 'templates')` 被包含在 `DIRS` 列表中。
 
-   * 如果 `BASE_DIR` 指向的是 `opportunity_system`，那么 `backend/templates` 是正确的。
+   * 如果 `BASE_DIR` 指向的是 `16lily`，那么 `backend/templates` 是正确的。
 2. **移动模板文件 (备选)**：
 
    * 如果修改 settings 风险较大，我可以将模板文件移动到 Django 默认查找的根目录 `templates` 下（即报错信息中尝试查找的第一个路径）。
 
-   * 报错显示它在找 `/Users/aoke/.../opportunity_system/templates/...`。
+   * 报错显示它在找 `/Users/aoke/.../16lily/templates/...`。
 
    * 所以我应该把 `backend/templates` 下的内容移动到 `templates` 目录下。
 
@@ -39,9 +39,9 @@ Django 尝试加载的路径包括：
 **Decision**: Move `backend/templates` to `templates`.
 
 Wait, checking the error log carefully:
-`.../opportunity_system/templates/admin/core/todotask/change_list.html (Source does not exist)`
-This confirms Django is looking in `opportunity_system/templates`.
-My file is at `opportunity_system/backend/templates`.
+`.../16lily/templates/admin/core/todotask/change_list.html (Source does not exist)`
+This confirms Django is looking in `16lily/templates`.
+My file is at `16lily/backend/templates`.
 
 I will move the files.
 

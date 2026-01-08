@@ -4,7 +4,7 @@ import django
 import sys
 
 # 设置项目根目录
-sys.path.append('/Users/aoke/code test/商机跟进及业绩统计/opportunity_system')
+sys.path.append('/Users/aoke/code test/商机跟进及业绩统计/16lily')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 

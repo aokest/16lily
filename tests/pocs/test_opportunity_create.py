@@ -5,7 +5,7 @@
 - 验证 `POST /opportunities/` 在提交扩展字段（如 win_rate）时不报错
 
 关联代码参考:
-- 序列化器: [serializers.py:OpportunitySerializer](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/serializers.py#L297-L330)
+- 序列化器: [serializers.py:OpportunitySerializer](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/serializers.py#L297-L330)
 """
 
 import json

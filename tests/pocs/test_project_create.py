@@ -5,8 +5,8 @@
 - 验证 `POST /projects/` 在缺少必填字段 `code` 时返回 400；补全字段后返回 201。
 
 关联代码参考:
-- 序列化器: [serializers.py:ProjectSerializer.Meta.read_only_fields](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/serializers.py#L415-L424)
-- 视图集: [views.py:ProjectViewSet.perform_create](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L702-L721)
+- 序列化器: [serializers.py:ProjectSerializer.Meta.read_only_fields](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/serializers.py#L415-L424)
+- 视图集: [views.py:ProjectViewSet.perform_create](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L702-L721)
 """
 
 import json

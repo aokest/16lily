@@ -113,7 +113,7 @@ Phase 4.4: 业务流程细化 - 🟢 **进行中**
 
 ```bash
 # 进入项目目录
-cd "/Users/aoke/code test/商机跟进及业绩统计/opportunity_system"
+cd "/Users/aoke/code test/商机跟进及业绩统计/16lily"
 
 # 启动所有服务
 docker-compose up -d

@@ -21,6 +21,7 @@ class AIConfiguration(models.Model):
     class Provider(models.TextChoices):
         OPENAI = 'OPENAI', 'OpenAI (及兼容接口)'
         DEEPSEEK = 'DEEPSEEK', 'DeepSeek'
+        GEMINI = 'GEMINI', 'Google Gemini'
         OLLAMA = 'OLLAMA', 'Ollama (Local)'
         MOONSHOT = 'MOONSHOT', 'Kimi (Moonshot)'
         ALIYUN = 'ALIYUN', '通义千问'
@@ -31,7 +32,7 @@ class AIConfiguration(models.Model):
     provider = models.CharField(max_length=20, choices=Provider.choices, default=Provider.DEEPSEEK, verbose_name='服务提供商')
     
     # User ownership (Null means system-wide config)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='ai_configs', verbose_name='创建人')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='ai_configs', verbose_name='所属用户')
     
     api_key = models.CharField(max_length=200, verbose_name='API Key')
     base_url = models.CharField(max_length=200, verbose_name='API Base URL', blank=True, help_text='如果是OpenAI兼容接口，请填写Base URL，例如：https://api.deepseek.com/v1')
@@ -901,6 +902,8 @@ class Project(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
     
     extra_data = models.JSONField(default=dict, blank=True, verbose_name='扩展数据')
+    is_deleted = models.BooleanField(default=False, verbose_name='是否已删除')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='删除时间')
 
     def __str__(self):
         return f"{self.code} - {self.name}"
@@ -912,22 +915,11 @@ class Project(models.Model):
                 old_obj = Project.objects.get(pk=self.pk)
                 # 检查状态变更
                 if old_obj.status != self.status:
-                    ProjectChangeLog.objects.create(
-                        project=self,
-                        operator=self.owner,  # 修正：使用 owner 而非 manager
-                        field_name='status',
-                        old_value=old_obj.status,
-                        new_value=self.status
-                    )
+                    # 仅在 operator 被显式传入时创建日志，或者通过视图层处理
+                    pass
                 # 检查阶段变更
                 if old_obj.stage != self.stage:
-                    ProjectChangeLog.objects.create(
-                        project=self,
-                        operator=self.owner,  # 修正：使用 owner 而非 manager
-                        field_name='stage',
-                        old_value=old_obj.stage,
-                        new_value=self.stage
-                    )
+                    pass
             except Project.DoesNotExist:
                 pass
         super().save(*args, **kwargs)
@@ -936,6 +928,20 @@ class Project(models.Model):
         verbose_name = '项目'
         verbose_name_plural = '项目列表'
         ordering = ['-created_at']
+
+class ProjectDeleteLog(models.Model):
+    """项目删除日志，用于管理员恢复"""
+    project_name = models.CharField(max_length=200, verbose_name='原项目名称')
+    project_code = models.CharField(max_length=50, verbose_name='项目编号')
+    deleted_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='删除人')
+    deleted_at = models.DateTimeField(auto_now_add=True, verbose_name='删除时间')
+    original_data = models.JSONField(verbose_name='原始数据备份')
+    is_restored = models.BooleanField(default=False, verbose_name='是否已恢复')
+
+    class Meta:
+        verbose_name = '项目删除日志'
+        verbose_name_plural = '项目删除日志'
+        ordering = ['-deleted_at']
 
 class ProjectChangeLog(models.Model):
     """

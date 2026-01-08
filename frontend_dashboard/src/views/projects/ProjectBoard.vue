@@ -310,30 +310,27 @@
             </div>
         </div>
 
-        <div class="flex justify-between items-center">
-            <h2 class="text-2xl font-black text-gray-900">关联项目卡片</h2>
-            <div class="flex items-center gap-4">
+        <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+            <h2 class="text-2xl font-black text-gray-900 shrink-0">关联项目卡片</h2>
+            <div class="flex flex-wrap items-center gap-3 justify-end">
                 <!-- Bulk Actions -->
-                <div v-if="selectedCards.length > 0" class="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 animate-in fade-in slide-in-from-right-4">
-                    <span class="text-xs font-bold text-blue-800 mr-2">已选 {{ selectedCards.length }} 项</span>
-                    <button @click="batchToggleStatus" class="text-xs flex items-center gap-1 text-gray-700 hover:text-gray-900 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm">
+                <div v-if="selectedCards.length > 0" class="flex flex-wrap items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 shadow-md animate-in fade-in slide-in-from-right-4">
+                    <span class="text-xs font-bold text-blue-800 mr-2 whitespace-nowrap">已选 {{ selectedCards.length }} 项</span>
+                    <button @click="batchToggleStatus" class="text-xs flex items-center gap-1 text-gray-700 hover:text-gray-900 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm whitespace-nowrap">
                         <i data-lucide="power" class="w-3 h-3"></i> 启/停
                     </button>
                     <div class="h-4 w-px bg-gray-300 mx-1"></div>
-                    <button @click="importMD" class="text-xs flex items-center gap-1 text-gray-700 hover:text-gray-900 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm">
-                        <i data-lucide="file-input" class="w-3 h-3"></i> 导入MD
-                    </button>
-                    <button @click="exportMD" class="text-xs flex items-center gap-1 text-gray-700 hover:text-gray-900 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm">
+                    <button @click="exportMD" class="text-xs flex items-center gap-1 text-gray-700 hover:text-gray-900 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm whitespace-nowrap">
                         <i data-lucide="file-output" class="w-3 h-3"></i> 导出MD
                     </button>
-                    <button @click="exportExcel" class="text-xs flex items-center gap-1 text-green-700 hover:text-green-900 bg-white border border-green-200 px-2 py-1 rounded shadow-sm">
+                    <button @click="exportExcel" class="text-xs flex items-center gap-1 text-green-700 hover:text-green-900 bg-white border border-green-200 px-2 py-1 rounded shadow-sm whitespace-nowrap">
                         <i data-lucide="sheet" class="w-3 h-3"></i> 导出Excel
                     </button>
                     <div class="h-4 w-px bg-gray-300 mx-1"></div>
-                    <button @click="showBudgetStats" class="text-xs flex items-center gap-1 text-purple-700 hover:text-purple-900 bg-white border border-purple-200 px-2 py-1 rounded shadow-sm">
+                    <button @click="showBudgetStats" class="text-xs flex items-center gap-1 text-purple-700 hover:text-purple-900 bg-white border border-purple-200 px-2 py-1 rounded shadow-sm whitespace-nowrap">
                         <i data-lucide="calculator" class="w-3 h-3"></i> 预算统计
                     </button>
-                    <button @click="batchDelete" class="text-xs flex items-center gap-1 text-red-600 hover:text-red-800 bg-white border border-red-200 px-2 py-1 rounded shadow-sm">
+                    <button @click="batchDelete" class="text-xs flex items-center gap-1 text-red-600 hover:text-red-800 bg-white border border-red-200 px-2 py-1 rounded shadow-sm whitespace-nowrap">
                         <i data-lucide="trash" class="w-3 h-3"></i> 删除
                     </button>
                 </div>
@@ -349,10 +346,13 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <button @click="openTimeline" class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center gap-2 shadow-sm">
+                    <button @click="importMD" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2 shadow-sm whitespace-nowrap">
+                        <i data-lucide="file-input" class="w-4 h-4"></i> 导入MD
+                    </button>
+                    <button @click="openTimeline" class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center gap-2 shadow-sm whitespace-nowrap">
                         <i data-lucide="calendar" class="w-4 h-4"></i> 查看推进表 (新窗口)
                     </button>
-                    <button @click="openCardCreator" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2 shadow-sm">
+                    <button @click="openCardCreator" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2 shadow-sm whitespace-nowrap">
                         <i data-lucide="plus-circle" class="w-4 h-4"></i> 新增卡片
                     </button>
                 </div>
@@ -366,9 +366,12 @@
                 :class="{'ring-2 ring-pomegranate-500 border-pomegranate-200 bg-pomegranate-50/20': selectedCards.includes(card.id), 'border-0': !selectedCards.includes(card.id), 'opacity-50 grayscale': card.is_active === false}"
                 @click="openCardEditor(card)">
                 
-                <!-- Selection Checkbox -->
-                <div class="absolute top-4 right-4 z-10" @click.stop>
+                <!-- Selection Checkbox & Actions -->
+                <div class="absolute top-4 right-4 z-10 flex flex-col gap-2" @click.stop>
                     <input type="checkbox" :value="card.id" v-model="selectedCards" class="w-5 h-5 text-pomegranate-500 rounded-full border-gray-300 focus:ring-pomegranate-500 focus:ring-2 cursor-pointer transition-all">
+                    <button @click="deleteCard(card.id)" class="p-1 bg-white border border-gray-200 rounded-full text-gray-400 hover:text-red-500 hover:border-red-200 shadow-sm transition-all opacity-0 group-hover:opacity-100" title="删除卡片">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
                 </div>
 
                 <div class="flex justify-between items-start mb-3 pr-8">
@@ -408,11 +411,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { createIcons, icons } from 'lucide';
 import { ElMessage } from 'element-plus';
 import api from '../../api';
+
+// Defined at the very top to ensure availability in template
+const selectedCards = ref<number[]>([]);
 
 const route = useRoute();
 const router = useRouter();
@@ -421,6 +427,11 @@ const projectId = route.params.id;
 const project = ref<any>(null);
 const cards = ref<any[]>([]);
 const viewMode = ref('grid');
+
+watch([project, cards, viewMode, selectedCards], async () => {
+    await nextTick();
+    createIcons({ icons });
+});
 
 const opportunityLoading = ref(false);
 const opportunityOptions = ref<any[]>([]);
@@ -582,10 +593,7 @@ onMounted(async () => {
     await loadData();
 });
 
-watch([project, cards, viewMode], async () => {
-    await nextTick();
-    createIcons({ icons });
-});
+
 
 async function loadData() {
     try {
@@ -618,9 +626,13 @@ async function loadData() {
         
         await nextTick();
         createIcons({ icons });
-    } catch (e) {
+    } catch (e: any) {
         console.error("Failed to load project", e);
-        // alert("加载失败");
+        if (e.response && e.response.status === 404) {
+            ElMessage.error('项目不存在或已被删除');
+        } else {
+            ElMessage.error('项目加载失败，请检查网络或稍后重试');
+        }
     }
 }
 
@@ -647,6 +659,22 @@ async function deleteCurrentProject() {
     }
 }
 
+/**
+ * 删除单个项目卡片
+ * @param {number} id 卡片ID
+ */
+async function deleteCard(id: number) {
+    if(!confirm('确定要删除这张卡片吗？')) return;
+    try {
+        await api.delete(`/project-cards/${id}/`);
+        ElMessage.success('卡片已删除');
+        await loadData();
+    } catch (e) {
+        console.error("Failed to delete card", e);
+        ElMessage.error('删除失败');
+    }
+}
+
 function exportProjectData() {
     const data = {
         project: project.value,
@@ -660,7 +688,7 @@ function exportProjectData() {
     a.click();
 }
 
-const selectedCards = ref<number[]>([]);
+
 
 function openTimeline() {
     const url = router.resolve({ name: 'StandaloneProjectTimeline', params: { id: projectId } }).href;

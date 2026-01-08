@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-01-08 调试记录与修复摘要
+
+### Docker 环境下 Vite 路径别名 (@) 失效导致白屏
+**症状**
+- 本地开发 (`npm run dev`) 一切正常。
+- Docker 容器内 (`npm run build` 或 `vite preview`) 访问特定页面白屏。
+- 浏览器控制台报错：`Failed to load resource: the server responded with a status of 500` 或 JS 模块解析错误。
+
+**原因**
+- 在 `MainLayout.vue` 中使用了 `import { ... } from '@/api/...'`。
+- 虽然 `vite.config.ts` 配置了 alias，但在某些 Docker 基础镜像或 Node 版本组合下，Rollup/Vite 在解析动态导入的 chunk 时可能出现路径映射偏差，导致模块未正确打包。
+
+**解决方案**
+- **防御性编程**: 在关键的布局组件或核心模块中，尽量使用**相对路径** (`../api/...`) 代替别名，减少构建依赖的不确定性。
+- **代码位置**: `frontend_dashboard/src/layout/MainLayout.vue`
+
+---
+
+### AI 服务静默失败 (Silent Failure)
+**症状**
+- 用户点击“AI 润色”，前端 Loading 几秒后提示“完成”，但内容没有任何变化。
+- 后端日志无显式 Traceback 报错。
+
+**原因**
+- **配置未激活**: 数据库中 `AIConfiguration` 存在记录，但 `is_active=False`。
+- **兜底逻辑过宽**: `polish_daily_report` 在捕获到异常或无可用模型时，为了防止崩溃，默认返回了 `original_text`。这在生产环境是合理的，但在调试期掩盖了配置错误。
+
+**解决方案**
+- **强制激活**: 编写脚本检查并激活默认配置。
+- **差异化提示**: 增强 Prompt，明确要求“即使原文完美，也要重新表述”，防止 LLM 偷懒。
+- **调试日志**: 在 `ai_service.py` 中增加显式的 `DEBUG` 日志打印当前使用的角色和 Prompt 摘要。
+
+---
+
 ## 2026-01-06 调试记录与修复摘要
 
 ### AI 润色功能失效 (404 Error)
@@ -17,7 +51,7 @@
 - 优化交互逻辑：点击润色后直接在当前编辑器内更新内容，不再自动保存并退出，提升编辑连续性。
 
 **代码位置**  
-- [frontend_dashboard/src/views/daily_reports/DailyReportList.vue:polishReport](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/views/daily_reports/DailyReportList.vue#L585-L612)
+- [frontend_dashboard/src/views/daily_reports/DailyReportList.vue:polishReport](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/views/daily_reports/DailyReportList.vue#L585-L612)
 
 **测试方法**  
 1. 前端：点击“AI 润色”，文字应在编辑器内直接变换，且右下角提示“AI 润色完成”。
@@ -36,7 +70,7 @@
 - 优化保存后的数据重新拉取 (`fetchData`) 流程。
 
 **代码位置**  
-- [frontend_dashboard/src/views/reports/PerformanceTargets.vue:fetchData](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/views/reports/PerformanceTargets.vue)
+- [frontend_dashboard/src/views/reports/PerformanceTargets.vue:fetchData](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/views/reports/PerformanceTargets.vue)
 
 **测试方法**  
 1. 前端：新增一个 2026 年的月度业绩目标，点击保存。
@@ -56,7 +90,7 @@
 - 引入 `el-row/el-col` 响应式栅格系统，重构为卡片流式布局。
 
 **代码位置**  
-- [frontend_dashboard/src/views/settings/DataManagement.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/views/settings/DataManagement.vue)
+- [frontend_dashboard/src/views/settings/DataManagement.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/views/settings/DataManagement.vue)
 
 ---
 
@@ -70,7 +104,7 @@
 - 在 `ProjectCardViewSet.perform_update()` 中显式调用 `serializer.save()`，以确保模型层日志逻辑生效。
 
 **代码位置**  
-- [core/views.py:ProjectCardViewSet.perform_update](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L619-L622)
+- [core/views.py:ProjectCardViewSet.perform_update](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L619-L622)
 
 **测试方法**  
 1. 后端：PATCH `/project-cards/{id}/`，修改 `sub_stage` 字段。  
@@ -86,7 +120,7 @@
 - 兼容字符串与字典两种返回值；若为字符串则直接作为润色结果保存。
 
 **代码位置**  
-- [core/views.py:DailyReportViewSet.polish](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L632-L656)
+- [core/views.py:DailyReportViewSet.polish](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L632-L656)
 
 **测试方法**  
 1. 前端：在“日报”页面新建/编辑后点击“AI 润色”。  
@@ -102,7 +136,7 @@
 - 统一接口返回结构：补齐 `totals`、`targets`、`status_distribution`、`groups`、`monthly`。
 
 **代码位置**  
-- [core/views.py:PerformanceReportView.get](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L425-L488)
+- [core/views.py:PerformanceReportView.get](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L425-L488)
 
 **测试方法**  
 1. 前端：报表页刷新，数据不再为 0。  
@@ -118,7 +152,7 @@
 - 备份时写入 `title` 字段；保持管理员恢复兼容。
 
 **代码位置**  
-- [core/views.py:ContactViewSet.perform_destroy](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L217-L231)
+- [core/views.py:ContactViewSet.perform_destroy](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L217-L231)
 
 **测试方法**  
 1. 前端：删除联系人；  
@@ -136,8 +170,8 @@
 - 创建 `SocialMediaStats` 时移除 `platform` 参数。
 
 **代码位置**  
-- [core/serializers.py:SocialMediaAccountSerializer](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/serializers.py#L279-L296)  
-- [core/views.py:SocialMediaAccountViewSet.perform_create/update](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L288-L316)
+- [core/serializers.py:SocialMediaAccountSerializer](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/serializers.py#L279-L296)  
+- [core/views.py:SocialMediaAccountViewSet.perform_create/update](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L288-L316)
 
 **测试方法**  
 1. 前端：新建/编辑社媒账号，点击保存无报错。  
@@ -153,7 +187,7 @@
 - 移除 `code` 的只读限制，允许创建时写入项目编号。
 
 **代码位置**  
-- [core/serializers.py:ProjectSerializer.Meta.read_only_fields](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/serializers.py#L415-L424)
+- [core/serializers.py:ProjectSerializer.Meta.read_only_fields](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/serializers.py#L415-L424)
 
 **测试方法**  
 1. 前端：在“项目列表”中点击“新建项目”，填写 `code` 后保存；  
@@ -169,7 +203,7 @@
 - 为序列化器添加这些扩展字段的 `write_only` 兼容，并在 `to_internal_value` 中将 `customer_name` 映射为 `customer_company`。
 
 **代码位置**  
-- [core/serializers.py:OpportunitySerializer](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/serializers.py#L297-L330)
+- [core/serializers.py:OpportunitySerializer](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/serializers.py#L297-L330)
 
 **测试方法**  
 1. 前端：新建或编辑商机，携带扩展字段保存；  
@@ -223,8 +257,8 @@
 - 使用 `getattr(instance, 'field', None)` 安全访问模型关联字段。
 
 **代码位置**  
-- [core/views.py:PerformanceTargetViewSet.bulk_update_targets](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L208-L370)
-- [core/signals.py:auto_create_opportunity_log](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/signals.py#L101-L124)
+- [core/views.py:PerformanceTargetViewSet.bulk_update_targets](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L208-L370)
+- [core/signals.py:auto_create_opportunity_log](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/signals.py#L101-L124)
 
 **测试方法**  
 1. 后端：调用 `bulk_update_targets` 更新某人 1 月份目标。
@@ -240,7 +274,7 @@
 - 实现 `create` 方法支持全体、指定部门、指定用户广播；类型支持 `normal/system`。
 
 **代码位置**  
-- [core/views.py:NotificationViewSet.create](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L658-L706)
+- [core/views.py:NotificationViewSet.create](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L658-L706)
 
 **测试方法**  
 1. 前端：个人中心发布消息；  
@@ -255,7 +289,7 @@
 - 优化前端 `startEditing` 逻辑：若存在 `polished_content` 且不为空，则优先将其加载到编辑框；否则加载 `raw_content`。
 
 **代码位置**  
-- [DailyReportList.vue:startEditing](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/views/daily_reports/DailyReportList.vue)
+- [DailyReportList.vue:startEditing](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/views/daily_reports/DailyReportList.vue)
 
 **测试方法**  
 1. 润色一篇日报并保存。
@@ -275,8 +309,8 @@
 - 后端模型补齐缺失字段并运行迁移。
 
 **代码位置**  
-- [PerformanceTargets.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/views/reports/PerformanceTargets.vue)
-- [models.py:PerformanceTarget](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/models.py)
+- [PerformanceTargets.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/views/reports/PerformanceTargets.vue)
+- [models.py:PerformanceTarget](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/models.py)
 
 **测试方法**  
 1. 进入“业绩目标管理”，确认部门显示为“技术部”、“销售部”等名称。
@@ -293,9 +327,9 @@
 - **前端**: 新增 `SystemLogs.vue` 界面，支持按类型、部门、操作人、时间范围筛选，并调用后端 CSV 接口进行全量数据导出。
 
 **关键组件**  
-- [ActivityLogViewSet](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py)
-- [SystemLogs.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/views/settings/SystemLogs.vue)
-- [signals.py](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/signals.py)
+- [ActivityLogViewSet](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py)
+- [SystemLogs.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/views/settings/SystemLogs.vue)
+- [signals.py](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/signals.py)
 
 ---
 
@@ -315,8 +349,8 @@
 1.  **临时救火**: 使用 `docker cp` 强制覆盖容器内文件：
     ```bash
     # 必须在项目根目录执行，且路径要准确
-    docker cp opportunity_system/frontend_dashboard/src/components/CardEditor.vue opportunity_system-dashboard-1:/app/src/components/CardEditor.vue
-    docker restart opportunity_system-dashboard-1
+    docker cp 16lily/frontend_dashboard/src/components/CardEditor.vue 16lily-dashboard-1:/app/src/components/CardEditor.vue
+    docker restart 16lily-dashboard-1
     ```
 2.  **验证方法**: 进入容器检查文件内容：
     ```bash

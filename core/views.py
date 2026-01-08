@@ -1,5 +1,10 @@
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.views import APIView
+import time
+import os
+import subprocess
+import sys
+from django.http import FileResponse
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
@@ -8,14 +13,14 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from datetime import timedelta
-from .models import Opportunity, PerformanceTarget, UserProfile, OpportunityLog, TodoTask, Announcement, SocialMediaStats, Competition, MarketActivity, Customer, DepartmentModel, DailyReport, ApprovalRequest, Notification
+from .models import Opportunity, PerformanceTarget, UserProfile, OpportunityLog, TodoTask, Announcement, SocialMediaStats, Competition, MarketActivity, Customer, DepartmentModel, DailyReport, ApprovalRequest, Notification, Project, ProjectCard, ProjectDeleteLog, ProjectChangeLog
 from .serializers import (
     OpportunitySerializer, PerformanceTargetSerializer, OpportunityLogSerializer, 
     OpportunityTeamMemberSerializer, UserSerializer, CompetitionSerializer, 
     MarketActivitySerializer, CustomerSerializer, ContactSerializer, 
     CustomerTagSerializer, ExternalIdMapSerializer, CustomerCohortSerializer, 
     DailyReportSerializer, AnnouncementSerializer, DepartmentSerializer,
-    UserSimpleSerializer
+    UserSimpleSerializer, ProjectSerializer, ProjectCardSerializer
 )
 from .serializers import (
     ActivityLogSerializer, ApprovalRequestSerializer, SocialMediaStatsSerializer, 
@@ -1454,20 +1459,76 @@ class AIConfigurationViewSet(viewsets.ModelViewSet):
         return AIConfiguration.objects.filter(user=self.request.user).order_by('-is_active', '-created_at')
 
     def perform_create(self, serializer):
-        # 保存时自动关联当前用户
-        serializer.save(user=self.request.user)
+        # 强制将提供商转为大写，彻底解决前端传值大小写问题
+        provider = self.request.data.get('provider', '').upper()
+        # 校验 provider 是否在合法选项中，不在则设为 OPENAI 作为兜底
+        valid_providers = ['OPENAI', 'DEEPSEEK', 'GEMINI', 'OLLAMA', 'MOONSHOT', 'ALIYUN', 'GLM', 'OTHER']
+        if provider not in valid_providers:
+            provider = 'OPENAI'
+        serializer.save(user=self.request.user, provider=provider)
+
+    def perform_update(self, serializer):
+        # 更新时也强制转大写
+        provider = self.request.data.get('provider', '').upper()
+        valid_providers = ['OPENAI', 'DEEPSEEK', 'GEMINI', 'OLLAMA', 'MOONSHOT', 'ALIYUN', 'GLM', 'OTHER']
+        if provider not in valid_providers:
+            provider = 'OPENAI'
+        serializer.save(provider=provider)
 
     @action(detail=True, methods=['post'])
     def set_default(self, request, pk=None):
         """
-        将指定的 AI 配置设为默认（激活），并将其他同类配置设为非激活
+        将指定的 AI 配置设为默认（激活），并将该用户的其他配置设为非激活
         """
         config = self.get_object()
-        # 暂时将所有配置设为非激活 (如果业务需要按 Provider 分开，这里可以加过滤)
-        AIConfiguration.objects.all().update(is_active=False)
+        # 仅将当前用户的配置设为非激活
+        AIConfiguration.objects.filter(user=self.request.user).update(is_active=False)
         config.is_active = True
         config.save()
         return Response({'status': 'success', 'message': f'已将 {config.name} 设为默认配置'})
+
+    @action(detail=True, methods=['post'])
+    def test_connection(self, request, pk=None):
+        """
+        Mode B: 测试 AI 配置连通性并输出详细调试日志
+        """
+        config = self.get_object()
+        print(f"--- [Mode B DEBUG] AI Connection Test ---")
+        print(f"Config ID: {config.id}, Name: {config.name}")
+        print(f"Provider: {config.provider}, BaseURL: {config.base_url}, Model: {config.model_name}")
+        
+        service = AIService(config_id=config.id)
+        test_prompt = "Say 'OK' if you can hear me."
+        test_text = "Hello AI"
+        
+        try:
+            # 这里的 _call_llm_json 会处理不同 Provider 的逻辑
+            result = service._call_llm_json(test_prompt, test_text, user=request.user, intent="TEST_CONNECTION")
+            
+            if 'error' in result:
+                print(f"[Mode B ERROR] Test Failed: {result['error']}")
+                return Response({
+                    'status': 'error',
+                    'message': '连接失败',
+                    'detail': result['error']
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            print(f"[Mode B SUCCESS] Response: {result}")
+            return Response({
+                'status': 'success',
+                'message': '连接成功',
+                'response': result
+            })
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"[Mode B CRITICAL] Exception occurred:\n{error_trace}")
+            return Response({
+                'status': 'error',
+                'message': '系统异常',
+                'detail': str(e),
+                'traceback': error_trace if request.user.is_staff else None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
@@ -1542,9 +1603,10 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'error': f'授权失败(系统错误): {str(e)}'}, status=500)
 
 class ProjectViewSet(viewsets.ModelViewSet):
-    from .models import Project
-    from .serializers import ProjectSerializer
-    queryset = Project.objects.all().order_by('-created_at')
+    def get_queryset(self):
+        # 默认只查询未删除的项目
+        return Project.objects.filter(is_deleted=False).order_by('-created_at')
+
     serializer_class = ProjectSerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['status', 'stage', 'owner']
@@ -1554,17 +1616,57 @@ class ProjectViewSet(viewsets.ModelViewSet):
         project = serializer.save(owner=self.request.user)
         # Record Log
         self._record_log(project, '创建项目', f"项目 {project.name} 已创建")
-        
-        # Auto-create Opportunity if not exists? 
-        # (Optional logic based on business requirements)
 
     def perform_update(self, serializer):
         old_instance = self.get_object()
         new_instance = serializer.save()
         
-        # Detect Stage changes
+        # 记录详细的变更日志
+        if old_instance.status != new_instance.status:
+            self._record_log(new_instance, '状态变更', f"从 {old_instance.get_status_display()} 变更为 {new_instance.get_status_display()}")
         if old_instance.stage != new_instance.stage:
             self._record_log(new_instance, '阶段变更', f"从 {old_instance.get_stage_display()} 变更为 {new_instance.get_stage_display()}")
+
+    def perform_destroy(self, instance):
+        try:
+            # 软删除逻辑：备份数据并标记删除
+            
+            # 备份项目及卡片数据
+            project_data = ProjectSerializer(instance).data
+            
+            # 解决 JSONField 不支持 Decimal 的问题
+            import json
+            from django.core.serializers.json import DjangoJSONEncoder
+            # 先转成 JSON 字符串再转回 dict，利用 DjangoJSONEncoder 处理 Decimal 和 DateTime
+            project_data_clean = json.loads(json.dumps(project_data, cls=DjangoJSONEncoder))
+            
+            ProjectDeleteLog.objects.create(
+                project_name=instance.name,
+                project_code=getattr(instance, 'code', 'UNKNOWN'),
+                deleted_by=self.request.user,
+                original_data=project_data_clean
+            )
+            
+            # 执行软删除
+            instance.is_deleted = True
+            import django.utils.timezone as timezone
+            instance.deleted_at = timezone.now()
+            instance.save()
+            
+            # 记录审计日志
+            from .models import ActivityLog
+            ActivityLog.objects.create(
+                actor=self.request.user,
+                action="删除",
+                content=f"删除了项目: {instance.name}",
+                type=ActivityLog.Type.PROJECT,
+                department=getattr(self.request.user.profile, 'department', '') if hasattr(self.request.user, 'profile') else ''
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(f"删除失败: {str(e)}")
 
     def _record_log(self, project, action, content):
         from .models import ProjectChangeLog
@@ -1576,8 +1678,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
 
 class ProjectCardViewSet(viewsets.ModelViewSet):
-    from .models import ProjectCard
-    from .serializers import ProjectCardSerializer
     queryset = ProjectCard.objects.all().order_by('order', '-created_at')
     serializer_class = ProjectCardSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -1615,11 +1715,154 @@ class ProjectCardViewSet(viewsets.ModelViewSet):
         # 显式保存以触发模型 save() 中的日志逻辑
         serializer.save()
 
+from django.http import FileResponse
+import subprocess
+import os
+import time
+
+class DataManagementViewSet(viewsets.ViewSet):
+    """
+    系统数据管理：备份、导出与恢复
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    @action(detail=False, methods=['post'])
+    def backup(self, request):
+        """执行全量数据库备份"""
+        timestamp = time.strftime('%Y%m%d_%H%M%S')
+        
+        try:
+            # 优先尝试 django dumpdata，因为它不依赖外部 pg_dump 工具，在容器内更可靠
+            backup_filename = f"db_backup_{timestamp}.json"
+            backup_path = f"/tmp/{backup_filename}"
+            
+            # 使用 subprocess 调用 manage.py dumpdata
+            # 排除不必要的系统表，这些表在导入时容易发生冲突
+            exclude_args = [
+                "--exclude", "contenttypes", 
+                "--exclude", "auth.Permission", 
+                "--exclude", "admin.logentry",
+                "--exclude", "sessions.session",
+                "--exclude", "core.SubmissionLog", # 提交日志通常较大且不重要
+                "--exclude", "core.ActivityLog"    # 活动日志也较大
+            ]
+            
+            with open(backup_path, 'w', encoding='utf-8') as f:
+                # 使用 sys.executable 确保使用当前环境的 Python 解释器
+                result = subprocess.run(
+                    [sys.executable, "manage.py", "dumpdata", "--indent", "2"] + exclude_args,
+                    stdout=f,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+            
+            if result.returncode != 0:
+                return Response({
+                    'error': '数据导出失败',
+                    'detail': result.stderr
+                }, status=500)
+
+            # 检查文件是否生成且非空
+            if not os.path.exists(backup_path) or os.path.getsize(backup_path) == 0:
+                return Response({'error': '生成的备份文件为空，请检查数据库连接'}, status=500)
+
+            response = FileResponse(
+                open(backup_path, 'rb'), 
+                as_attachment=True, 
+                filename=backup_filename,
+                content_type='application/json'
+            )
+            return response
+        except Exception as e:
+            import traceback
+            return Response({
+                'error': f'备份执行异常: {str(e)}',
+                'traceback': traceback.format_exc()
+            }, status=500)
+
+    @action(detail=False, methods=['post'])
+    def restore(self, request):
+        """恢复数据库备份"""
+        if 'file' not in request.FILES:
+            return Response({'error': '请上传备份文件 (.json)'}, status=400)
+        
+        backup_file = request.FILES['file']
+        if not backup_file.name.endswith('.json'):
+            return Response({'error': '仅支持 .json 格式的备份文件'}, status=400)
+        
+        temp_path = f"/tmp/restore_{int(time.time())}.json"
+        
+        try:
+            # 保存上传的文件到临时目录
+            with open(temp_path, 'wb+') as destination:
+                for chunk in backup_file.chunks():
+                    destination.write(chunk)
+            
+            # 执行 loaddata
+            result = subprocess.run(
+                [sys.executable, "manage.py", "loaddata", temp_path],
+                capture_output=True,
+                text=True
+            )
+            
+            # 删除临时文件
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            
+            if result.returncode != 0:
+                return Response({
+                    'error': '数据恢复失败',
+                    'detail': result.stderr
+                }, status=500)
+            
+            return Response({
+                'message': '数据恢复成功',
+                'detail': result.stdout
+            })
+            
+        except Exception as e:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return Response({'error': f'恢复执行异常: {str(e)}'}, status=500)
+
+    @action(detail=False, methods=['get'])
+    def history(self, request):
+        """获取备份历史 (简化版)"""
+        return Response([
+            { 'time': time.strftime('%Y-%m-%d %H:%M:%S'), 'type': '备份', 'operator': request.user.username, 'status': '成功', 'remark': '手动触发全量备份' }
+        ])
+
 class DailyReportViewSet(viewsets.ModelViewSet):
     queryset = DailyReport.objects.all().order_by('-date', '-created_at')
     serializer_class = DailyReportSerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['user', 'date']
+
+    def get_queryset(self):
+        """
+        管理员和授权助理可以查看所有日报，普通用户只能查看自己的。
+        """
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return DailyReport.objects.none()
+            
+        qs = DailyReport.objects.all().order_by('-date', '-created_at')
+        
+        # 检查是否为管理员或授权助理
+        try:
+            # 优化查询：只在必要时查询数据库
+            is_privileged = (
+                user.is_staff or 
+                user.is_superuser or 
+                user.groups.filter(name='ASSISTANT_PROXY').exists()
+            )
+        except Exception:
+            is_privileged = False
+        
+        if not is_privileged:
+            qs = qs.filter(user=user)
+            
+        return qs
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -1676,8 +1919,25 @@ class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # 仅返回发送给当前用户的通知
-        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
+        # 自动清理当前用户的无效通知（关联对象已删除的）
+        user = self.request.user
+        qs = Notification.objects.filter(recipient=user).order_by('-created_at')
+        
+        # 仅在列表查询时进行轻量级清理（只检查前 50 条，避免性能问题）
+        check_qs = qs[:50]
+        invalid_ids = []
+        for notice in check_qs:
+            if notice.content_type and notice.object_id:
+                model_class = notice.content_type.model_class()
+                if not model_class or not model_class.objects.filter(pk=notice.object_id).exists():
+                    invalid_ids.append(notice.id)
+        
+        if invalid_ids:
+            Notification.objects.filter(id__in=invalid_ids).delete()
+            # 重新获取干净的 queryset
+            qs = Notification.objects.filter(recipient=user).order_by('-created_at')
+            
+        return qs
 
     def create(self, request, *args, **kwargs):
         """

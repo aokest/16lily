@@ -1,17 +1,17 @@
 ## 目标
 - 全量梳理本仓库 Markdown 文档与说明文件，建立一个清晰、无重复、可持续维护的文档体系。
-- 明确两套目录（opportunity_system 与 project_cards）的作用边界，保留主线、归档历史/原型。
+- 明确两套目录（16lily 与 project_cards）的作用边界，保留主线、归档历史/原型。
 - 所有操作先在“测试环境/备份”中进行，验证无误后再应用到主环境，可随时回滚。
 
 ## 范围
-- 路径：/opportunity_system/docs、/opportunity_system/.trae/documents、仓库根目录下 AGENTS.md/DEV_NOTES.md、/project_cards/docs 及其相关说明文件。
+- 路径：/16lily/docs、/16lily/.trae/documents、仓库根目录下 AGENTS.md/DEV_NOTES.md、/project_cards/docs 及其相关说明文件。
 - 不变更业务代码与运行配置，仅重整文档与说明性文件。
 
 ## 风险控制与回滚
 - 先做全量备份（Mac 终端可复制）：
-  - mkdir -p backups && tar -czf backups/docs_backup_$(date +%F).tar.gz opportunity_system/docs project_cards/docs .trae/documents AGENTS.md DEV_NOTES.md
+  - mkdir -p backups && tar -czf backups/docs_backup_$(date +%F).tar.gz 16lily/docs project_cards/docs .trae/documents AGENTS.md DEV_NOTES.md
 - 建立“测试环境”目录用于试整：
-  - mkdir -p staging && cp -R opportunity_system/docs staging/docs && cp -R project_cards/docs staging/project_cards_docs && cp -R .trae/documents staging/trae_docs
+  - mkdir -p staging && cp -R 16lily/docs staging/docs && cp -R project_cards/docs staging/project_cards_docs && cp -R .trae/documents staging/trae_docs
 - 验证通过后再同步至主环境；若出现问题，解压备份覆盖即可回滚。
 
 ## 文档分类与最终目录结构（建议）
@@ -62,7 +62,7 @@
 - 角色定位：原型/静态页面与数据转换脚本（如 cardv8.html、project_timeline.html、convert_data.py）；与主线前端（frontend_dashboard）功能高度重叠。
 - 建议：
   - 迁移到 legacy/project_cards/（或 docs/archive/project_cards/）作为历史原型保留；
-  - 与 opportunity_system 的前端功能（如 StandaloneCardEditor.vue）对照后，将仍有价值的文档/示例迁入 docs 示例区，其余归档。
+  - 与 16lily 的前端功能（如 StandaloneCardEditor.vue）对照后，将仍有价值的文档/示例迁入 docs 示例区，其余归档。
 - 保留最小必要文件：README.md、系统架构与数据模型说明（02-系统架构设计.md、02-数据模型.md）、重要示例；其余按需归档。
 
 ## 检测与核验方法

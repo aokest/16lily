@@ -29,8 +29,8 @@
 ### 2.1 克隆代码
 进入 1Panel 的 **[主机] -> [终端]**，执行：
 ```bash
-mkdir -p /opt/1panel/apps/opportunity_system
-cd /opt/1panel/apps/opportunity_system
+mkdir -p /opt/1panel/apps/16lily
+cd /opt/1panel/apps/16lily
 git clone https://github.com/aokest/16group.git .
 ```
 

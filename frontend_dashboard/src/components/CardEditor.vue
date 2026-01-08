@@ -115,9 +115,12 @@
               {{ aiLoading ? 'AI 思考中...' : 'AI 智能优化' }}
             </button>
             <button @click="save" class="flex items-center gap-1 bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-all shadow-sm cursor-pointer">
-              <i data-lucide="save" class="w-4 h-4"></i> 保存
-            </button>
-            <div class="h-6 w-px bg-gray-300 mx-2"></div>
+            <i data-lucide="save" class="w-4 h-4"></i> 保存
+          </button>
+          <button @click="deleteCard" class="flex items-center gap-1 bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-red-50 transition-all shadow-sm cursor-pointer" title="删除此卡片">
+            <i data-lucide="trash-2" class="w-4 h-4"></i> 删除
+          </button>
+          <div class="h-6 w-px bg-gray-300 mx-2"></div>
             <button @click="close" class="flex items-center gap-1 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all shadow-sm cursor-pointer">
               <i data-lucide="x" class="w-4 h-4"></i> 关闭
             </button>
@@ -315,7 +318,7 @@ const props = defineProps<{
   mode?: 'modal' | 'page';
 }>();
 
-const emit = defineEmits(['update:visible', 'save', 'prev', 'next']);
+const emit = defineEmits(['update:visible', 'save', 'prev', 'next', 'delete']);
 
 function handlePrev() {
   if (hasUnsavedChanges.value) {
@@ -861,6 +864,27 @@ async function save() {
   // For now, rely on parent component to handle save success/failure feedback if any
   // But we reset unsaved changes flag
   hasUnsavedChanges.value = false;
+}
+
+/**
+ * 删除当前卡片
+ */
+async function deleteCard() {
+  if (!props.cardData?.id) return;
+  if (!confirm('确定要删除这张卡片吗？此操作不可恢复。')) return;
+  
+  try {
+    await api.delete(`/project-cards/${props.cardData.id}/`);
+    emit('delete', props.cardData.id);
+    if (mode.value === 'page') {
+      window.close();
+    } else {
+      emit('update:visible', false);
+    }
+  } catch (e: any) {
+    console.error("Failed to delete card:", e);
+    alert('删除失败: ' + (e.response?.data?.error || e.message));
+  }
 }
 
 </script>

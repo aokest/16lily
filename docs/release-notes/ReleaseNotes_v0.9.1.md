@@ -16,14 +16,14 @@
 
 ## 关键代码引用
 - 样式菜单与参数绑定（CardEditor）
-  - 工具栏及菜单：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/components/CardEditor.vue#L30-L74)
-  - 菜单定位与切换：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/components/CardEditor.vue#L270-L312)
-  - 标题字号与分隔线绑定：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/components/CardEditor.vue#L90-L99)
-  - 全部 Section 的字号与行距绑定（左/右列）：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/components/CardEditor.vue#L116-L142)
+  - 工具栏及菜单：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/components/CardEditor.vue#L30-L74)
+  - 菜单定位与切换：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/components/CardEditor.vue#L270-L312)
+  - 标题字号与分隔线绑定：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/components/CardEditor.vue#L90-L99)
+  - 全部 Section 的字号与行距绑定（左/右列）：[CardEditor.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/components/CardEditor.vue#L116-L142)
 - Section 组件支持动态分隔线与行距（CardSection）
-  - 动态 borderBottomWidth、lineHeight：[CardSection.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/components/CardSection.vue#L1-L14)
+  - 动态 borderBottomWidth、lineHeight：[CardSection.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/components/CardSection.vue#L1-L14)
 - 通知铃铛默认数据与倒序（MainLayout）
-  - localStorage 读取与默认注入：[MainLayout.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/opportunity_system/frontend_dashboard/src/layout/MainLayout.vue#L296-L305)
+  - localStorage 读取与默认注入：[MainLayout.vue](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%A9%E7%BB%9F%E8%AE%A1/16lily/frontend_dashboard/src/layout/MainLayout.vue#L296-L305)
 
 ## 验证与结果
 - 手工测试

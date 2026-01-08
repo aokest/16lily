@@ -35,7 +35,7 @@ AI可以为您执行以下命令：
 
 ```bash
 # 进入项目目录
-cd /Users/aoke/code\ test/商机跟进及业绩统计/opportunity_system
+cd /Users/aoke/code\ test/商机跟进及业绩统计/16lily
 
 # 1. 检查文档链接（试运行）
 python3 scripts/docs_link_fix.py

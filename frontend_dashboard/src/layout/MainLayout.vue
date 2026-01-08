@@ -116,15 +116,21 @@
                 </div>
                 <div class="max-h-[400px] overflow-y-auto custom-scrollbar">
                     <ul class="divide-y divide-gray-50">
-                        <li v-for="msg in recentMessages" :key="msg.id" @click="handleMessageClick(msg)" class="p-3 hover:bg-gray-50 cursor-pointer transition-colors flex gap-3 group">
-                            <div class="w-2 h-2 mt-1.5 rounded-full shrink-0 transition-colors" :class="msg.read ? 'bg-gray-200' : (msg.type === 'system' ? 'bg-red-500' : 'bg-blue-500')"></div>
-                            <div class="flex-1 overflow-hidden">
-                                <div class="flex justify-between items-start mb-1">
-                                    <span class="text-xs font-bold truncate pr-2" :class="msg.read ? 'text-gray-500 font-normal' : 'text-gray-800'">{{ msg.title }}</span>
-                                    <span class="text-[10px] text-gray-400 whitespace-nowrap">{{ formatTime(msg.time) }}</span>
+                        <li v-for="msg in recentMessages" :key="msg.id" class="p-3 hover:bg-gray-50 cursor-pointer transition-colors flex gap-3 group relative">
+                            <div @click="handleMessageClick(msg)" class="flex-1 flex gap-3 overflow-hidden">
+                                <div class="w-2 h-2 mt-1.5 rounded-full shrink-0 transition-colors" :class="msg.read ? 'bg-gray-200' : (msg.type === 'system' ? 'bg-red-500' : 'bg-blue-500')"></div>
+                                <div class="flex-1 overflow-hidden">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <span class="text-xs font-bold truncate pr-6" :class="msg.read ? 'text-gray-500 font-normal' : 'text-gray-800'">{{ msg.title }}</span>
+                                        <span class="text-[10px] text-gray-400 whitespace-nowrap">{{ formatTime(msg.time || msg.created_at) }}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 line-clamp-2" :class="{'opacity-60': msg.read}">{{ msg.content }}</div>
                                 </div>
-                                <div class="text-xs text-gray-500 line-clamp-2" :class="{'opacity-60': msg.read}">{{ msg.content }}</div>
                             </div>
+                            <!-- 删除按钮 -->
+                            <button @click.stop="deleteMessage(msg.id)" class="absolute right-2 top-3 p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            </button>
                         </li>
                         <li v-if="recentMessages.length === 0" class="p-4 text-center text-xs text-gray-400">暂无消息</li>
                     </ul>
@@ -173,6 +179,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import api from '../api';
+import { ElMessage } from 'element-plus';
 
 const router = useRouter();
 const route = useRoute();
@@ -320,20 +328,12 @@ const messages = ref<any[]>([]);
 const unreadCount = computed(() => messages.value.filter(m => !m.read).length);
 const recentMessages = computed(() => messages.value.slice(0, 10));
 
-function loadMessages() {
-  const saved = localStorage.getItem('crm_manager_messages');
-  if (saved) {
-    try {
-        messages.value = JSON.parse(saved);
-    } catch(e) { console.error("Failed to parse messages", e); }
-  } else {
-      // Default Mock Data if empty
-      messages.value = [
-          { id: 1, type: 'system', title: '系统维护通知', content: '本周五将进行服务器例行维护，预计停机时间为 22:00 - 24:00，请提前保存工作内容。', time: '2025-12-31 10:00', targetLabel: '全体成员', read: false },
-          { id: 2, type: 'normal', title: '销售冲刺会议', content: '请销售部全体成员于下午2点参加Q4销售冲刺会议，会议室：301。', time: '2025-12-31 14:00', targetLabel: '销售部', read: false },
-          { id: 3, type: 'normal', title: '报销审批通过', content: '您的差旅费报销申请已通过审批，款项将于3个工作日内打款。', time: '2025-12-30 09:30', targetLabel: '张三', read: true }
-      ];
-      localStorage.setItem('crm_manager_messages', JSON.stringify(messages.value));
+async function loadMessages() {
+  try {
+    const res = await api.get('/notifications/');
+    messages.value = res.data.results || res.data;
+  } catch (e) {
+    console.error("Failed to load notifications:", e);
   }
 }
 
@@ -344,22 +344,35 @@ function toggleNotifications() {
   }
 }
 
-function markAllRead() {
-    messages.value.forEach(m => m.read = true);
-    saveMessages();
-}
-
-function handleMessageClick(msg: any) {
-    if (!msg.read) {
-        msg.read = true;
-        saveMessages();
+async function markAllRead() {
+    try {
+        await api.post('/notifications/mark_all_read/');
+        messages.value.forEach(m => m.read = true);
+        ElMessage.success('全部标记为已读');
+    } catch (e) {
+        ElMessage.error('操作失败');
     }
 }
 
-function saveMessages() {
-    localStorage.setItem('crm_manager_messages', JSON.stringify(messages.value));
-    // Dispatch event for other components
-    window.dispatchEvent(new Event('crm-messages-updated'));
+async function handleMessageClick(msg: any) {
+    if (!msg.read) {
+        try {
+            await api.post(`/notifications/${msg.id}/mark_read/`);
+            msg.read = true;
+        } catch (e) {
+            console.error("Failed to mark message as read:", e);
+        }
+    }
+}
+
+async function deleteMessage(id: number) {
+    try {
+        await api.delete(`/notifications/${id}/`);
+        messages.value = messages.value.filter(m => m.id !== id);
+        ElMessage.success('删除成功');
+    } catch (e) {
+        ElMessage.error('删除失败');
+    }
 }
 
 function goToCenter() {
@@ -398,10 +411,6 @@ onMounted(async () => {
     }
 
     loadMessages();
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'crm_manager_messages') loadMessages();
-    });
-    window.addEventListener('crm-messages-updated', loadMessages);
 });
 
 </script>

@@ -440,6 +440,7 @@ class AIService:
     def polish_daily_report(self, text, user=None, projects=None):
         """
         润色日报内容，使其更偏向研发、生产、经营结果的总结。
+        根据用户角色自动匹配不同的润色风格。
         """
         project_context = ""
         if projects:
@@ -447,40 +448,133 @@ class AIService:
             project_context = f"关联项目: {', '.join(project_names)}"
         
         user_context = ""
+        user_role = 'GENERAL'
+        
         if user:
             name = f"{user.last_name}{user.first_name}".strip()
             user_context = f"汇报人: {name if name else user.username}"
+            
+            # 尝试获取用户角色以适配Prompt
+            if hasattr(user, 'profile') and user.profile:
+                # 假设 profile.job_category 存储了 RND, SALES, MANAGEMENT 等
+                # 或者通过 job_title 获取
+                cat = user.profile.job_category
+                if cat in ['RND', 'RESEARCHER', 'LAB', 'POC', 'DESIGN']:
+                    user_role = 'RND'
+                elif cat in ['SALES', 'MARKETING']:
+                    user_role = 'SALES'
+                elif cat in ['MANAGEMENT', 'VP', 'PRESIDENT']:
+                    user_role = 'MANAGEMENT'
         
-        default_prompt = """
-        你是专业的企业工作汇报助手。请根据用户提供的原始日报内容，对其进行润色和优化。
+        # --- 定义场景化 Prompts ---
         
-        目标风格：
-        1. 语言专业、简练，符合企业正式公文规范。
-        2. 重点突出“研发进展”、“生产交付”、“经营结果”等实质性产出。
-        3. 将流水账式的描述转化为结果导向的陈述（例如将“做了X”改为“完成了X，实现了Y效果”）。
-        4. 自动纠正错别字和语病。
+        # 1. 研发/技术类
+        prompt_rnd = """
+        你是一名资深研发技术总监。请将用户的日报润色为专业的技术工作汇报。
         
-        输出要求：
-        请返回严格的 JSON 格式，包含一个字段 "content"，其值为润色后的文本内容。
-        不要包含任何开场白或解释性语言。
-        保留原意，不要虚构事实。
+        【目标风格】
+        1. **技术驱动**：使用准确的计算机与软件工程术语（如：重构、迭代、解耦、高并发、延迟优化等）。
+        2. **结果导向**：不要只说“做了什么”，要强调“解决了什么问题”或“提升了什么性能”。
+        3. **结构化**：
+           - **今日产出**：列出具体完成的功能点或修复的Bug。
+           - **技术难点**：简述遇到的挑战及解决方案。
+           - **明日计划**：明确下一步的开发重点。
+        
+        【必须执行】
+        - 即使原文很简单，也要扩充为标准的技术汇报格式。
+        - 去除“今天”、“然后”等口语化词汇。
+        - 自动纠正错别字。
         """
+
+        # 2. 销售/市场类
+        prompt_sales = """
+        你是一名资深销售总监。请将用户的日报润色为结果导向的销售业绩汇报。
         
-        prompt = self._get_prompt(PromptTemplate.Scene.REPORT, default_prompt)
-        prompt += f"\n\n{user_context}\n{project_context}\n\n当前日期: {timezone.now().strftime('%Y-%m-%d')}"
+        【目标风格】
+        1. **狼性与进取**：强调商机推进、客户触达和回款进度。
+        2. **量化指标**：如果原文包含数字，请重点突出；如果没有，请通过专业话术体现工作量。
+        3. **结构化**：
+           - **客户跟进**：拜访/沟通情况，明确客户意向度。
+           - **商机进展**：项目的阶段变化及下一步赢单策略。
+           - **需要支持**：明确所需的资源或协助。
         
-        # 强制要求 JSON
-        json_prompt = prompt + "\n\nIMPORTANT: You MUST return a valid JSON object with a single key 'content'."
+        【必须执行】
+        - 将“联系了客户”改为“深度触达客户关键决策人”等专业表述。
+        - 语气要积极自信。
+        """
+
+        # 3. 管理/综合类
+        prompt_mgmt = """
+        你是一名企业高管。请将用户的日报润色为宏观的管理工作汇报。
         
-        data = self._call_llm_json(json_prompt, text, user=user, intent='polish', entity='daily_report')
+        【目标风格】
+        1. **全局视野**：关注团队进度、资源协调、风险预警。
+        2. **价值交付**：强调项目里程碑的达成和业务价值的实现。
+        3. **结构化**：
+           - **重点进展**：关键项目的里程碑状态。
+           - **管理动作**：团队建设、协调沟通、决策事项。
+           - **风险与应对**：潜在风险及应对预案。
+        """
+
+        # 4. 通用/职能类
+        prompt_general = """
+        你是专业的企业工作汇报助手。请根据用户提供的原始日报内容，对其进行润色和优化。
+
+        【目标风格】
+        1. **语言专业**：简练、严谨，符合企业正式公文规范。
+        2. **实质性**：重点突出“工作产出”和“经营结果”。
+        3. **转化**：将流水账式的描述转化为结果导向的陈述（例如将“做了X”改为“完成了X，实现了Y效果”）。
+        4. **修正**：自动纠正错别字和语病。
+        """
+
+        # 选择 Prompt
+        selected_prompt = prompt_general
+        if user_role == 'RND':
+            selected_prompt = prompt_rnd
+        elif user_role == 'SALES':
+            selected_prompt = prompt_sales
+        elif user_role == 'MANAGEMENT':
+            selected_prompt = prompt_mgmt
+
+        # 叠加通用 JSON 要求
+        json_instruction = """
+        【输出要求】
+        1. 请返回严格的 JSON 格式，包含一个字段 "content"，其值为润色后的文本内容。
+        2. 不要包含任何开场白或解释性语言（如“好的，这是润色后的内容...”）。
+        3. Markdown 格式：在 "content" 文本中，请使用 Markdown 语法（如 **加粗**，- 列表）来排版。
+        """
+
+        final_default_prompt = selected_prompt + "\n" + json_instruction
+
+        # 尝试从数据库获取模板
+        # 根据角色使用不同的 Scene Key，避免通用模板覆盖专用逻辑
+        scene_key = PromptTemplate.Scene.REPORT
+        if user_role == 'RND':
+            scene_key = 'REPORT_RND'
+        elif user_role == 'SALES':
+            scene_key = 'REPORT_SALES'
+        elif user_role == 'MANAGEMENT':
+            scene_key = 'REPORT_MANAGEMENT'
+
+        prompt = self._get_prompt(scene_key, final_default_prompt)
+        
+        # 组装最终上下文
+        full_prompt = prompt + f"\n\n{user_context}\n{project_context}\n\n当前日期: {timezone.now().strftime('%Y-%m-%d')}"
+        
+        # 强制 JSON 约束 (再次强调，防止 Template 没写)
+        full_prompt += "\n\nIMPORTANT: You MUST return a valid JSON object with a single key 'content'."
+
+        print(f"DEBUG: Polishing with User Role: {user_role}")
+        
+        data = self._call_llm_json(full_prompt, text, user=user, intent='polish', entity='daily_report')
         
         if data and isinstance(data, dict) and 'content' in data:
             return data['content']
         
         if data and isinstance(data, dict) and 'error' in data:
             print(f"AI Polish Error: {data['error']}")
-            
-        return text # 如果失败，返回原文
+        
+        return text
 
     def parse_work_report(self, text, user=None):
         default_prompt = """

@@ -11,20 +11,20 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # In docker, BASE_DIR is /app/backend usually, or /app depending on settings.
         # Let's assume files are at /app/temp_projects.json
-        # Wait, if I put them in opportunity_system/, they are at /app/temp_projects.json (if Dockerfile copies .)
+        # Wait, if I put them in 16lily/, they are at /app/temp_projects.json (if Dockerfile copies .)
         # Or mapped volume.
         
         # settings.BASE_DIR is usually /app/backend or similar.
         # Let's try to find them relative to manage.py which is at /app/manage.py
         
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        # core/management/commands/import... -> core/management/commands -> core/management -> core -> opportunity_system (root)
+        # core/management/commands/import... -> core/management/commands -> core/management -> core -> 16lily (root)
         
         # Actually, let's just use absolute path /app/temp_projects.json if we are in docker and root is mapped.
         # But to be safe, use relative to manage.py
         
-        # manage.py is at opportunity_system/manage.py
-        # This file is opportunity_system/core/management/commands/import_project_cards.py
+        # manage.py is at 16lily/manage.py
+        # This file is 16lily/core/management/commands/import_project_cards.py
         
         root_dir = "/app" # Standard for many docker setups
         if not os.path.exists(os.path.join(root_dir, 'manage.py')):

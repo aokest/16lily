@@ -1,7 +1,7 @@
 # 🧪 工作交接（v0.9.1）
 
 ## 环境与入口
-- 前端 Dashboard 根：`opportunity_system/frontend_dashboard`
+- 前端 Dashboard 根：`16lily/frontend_dashboard`
 - 独立卡片编辑器：`/standalone/card/:id`
 - 主要组件：
   - 卡片编辑器：`src/components/CardEditor.vue`

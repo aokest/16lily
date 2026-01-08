@@ -23,7 +23,7 @@
     - 优化了序列化器的名称显示逻辑，将 "Unknown" 统一改为更友好的 "系统" 或 "未分配"。
 - **发布与部署**:
     - 完成了代码脱敏并同步至 GitHub 私有仓库（`aokest/16group`）。
-    - 编写并完善了阿里云/生产环境部署手册 [DEPLOYMENT_GUIDE.md](file:///Users/aoke/code%20test/商机跟进及业绩统计/opportunity_system/docs/DEPLOYMENT_GUIDE.md)。
+    - 编写并完善了阿里云/生产环境部署手册 [DEPLOYMENT_GUIDE.md](file:///Users/aoke/code%20test/商机跟进及业绩统计/16lily/docs/DEPLOYMENT_GUIDE.md)。
 
 ### 当前状态
 - 数据库服务已正常启动，本地研发/测试环境稳定。

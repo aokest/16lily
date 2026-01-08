@@ -4,38 +4,39 @@ from .views import (
     OpportunityViewSet, PerformanceTargetViewSet, DashboardViewSet, 
     WeChatLoginView, MeView, competition_kanban_page, marketactivity_kanban_page, 
     CompetitionViewSet, MarketActivityViewSet, AIAnalysisView, CustomerViewSet, ApprovalRequestViewSet, SocialMediaStatsViewSet, SocialMediaAccountViewSet, ContactViewSet, CustomerTagViewSet, OpportunityTeamMemberViewSet, OpportunityLogViewSet, ExternalIdMapViewSet, CustomerCohortViewSet, ChatView, PerformanceReportView, AgentRouterView, SubmissionLogViewSet, AIConfigurationViewSet, UserViewSet, ActivityLogViewSet, ContactDeleteLogViewSet,
-    ProjectViewSet, ProjectCardViewSet, DailyReportViewSet, NotificationViewSet, AnnouncementViewSet, DepartmentViewSet, JobTitleViewSet
+    ProjectViewSet, ProjectCardViewSet, DailyReportViewSet, NotificationViewSet, AnnouncementViewSet, DepartmentViewSet, JobTitleViewSet, DataManagementViewSet
 )
 from django.views.generic import TemplateView
 
 router = DefaultRouter()
+router.register(r'data-management', DataManagementViewSet, basename='data-management')
 router.register(r'notifications', NotificationViewSet, basename='notifications')
 router.register(r'announcements', AnnouncementViewSet, basename='announcements')
-router.register(r'opportunities', OpportunityViewSet)
-router.register(r'daily-reports', DailyReportViewSet)
-router.register(r'departments', DepartmentViewSet)
-router.register(r'job-titles', JobTitleViewSet) # New endpoint
-router.register(r'customers', CustomerViewSet)
-router.register(r'contacts', ContactViewSet)
-router.register(r'customer-tags', CustomerTagViewSet)
-router.register(r'opportunity-team-members', OpportunityTeamMemberViewSet)
-router.register(r'opportunity-logs', OpportunityLogViewSet)
-router.register(r'external-ids', ExternalIdMapViewSet)
-router.register(r'customer-cohorts', CustomerCohortViewSet)
-router.register(r'performance-targets', PerformanceTargetViewSet)
-router.register(r'competitions', CompetitionViewSet)
-router.register(r'activities', MarketActivityViewSet)
-router.register(r'approvals', ApprovalRequestViewSet)
-router.register(r'social-stats', SocialMediaStatsViewSet)
-router.register(r'social-accounts', SocialMediaAccountViewSet)
+router.register(r'opportunities', OpportunityViewSet, basename='opportunities')
+router.register(r'daily-reports', DailyReportViewSet, basename='daily-reports')
+router.register(r'departments', DepartmentViewSet, basename='departments')
+router.register(r'job-titles', JobTitleViewSet, basename='job-titles')
+router.register(r'customers', CustomerViewSet, basename='customers')
+router.register(r'contacts', ContactViewSet, basename='contacts')
+router.register(r'customer-tags', CustomerTagViewSet, basename='customer-tags')
+router.register(r'opportunity-team-members', OpportunityTeamMemberViewSet, basename='opportunity-team-members')
+router.register(r'opportunity-logs', OpportunityLogViewSet, basename='opportunity-logs')
+router.register(r'external-ids', ExternalIdMapViewSet, basename='external-ids')
+router.register(r'customer-cohorts', CustomerCohortViewSet, basename='customer-cohorts')
+router.register(r'performance-targets', PerformanceTargetViewSet, basename='performance-targets')
+router.register(r'competitions', CompetitionViewSet, basename='competitions')
+router.register(r'activities', MarketActivityViewSet, basename='activities')
+router.register(r'approvals', ApprovalRequestViewSet, basename='approvals')
+router.register(r'social-stats', SocialMediaStatsViewSet, basename='social-stats')
+router.register(r'social-accounts', SocialMediaAccountViewSet, basename='social-accounts')
 router.register(r'dashboard', DashboardViewSet, basename='dashboard')
 router.register(r'submission-logs', SubmissionLogViewSet, basename='submission-logs')
 router.register(r'activity-logs', ActivityLogViewSet, basename='activity-logs')
 router.register(r'contact-delete-logs', ContactDeleteLogViewSet, basename='contact-delete-logs')
 router.register(r'admin/ai-configs', AIConfigurationViewSet, basename='admin-ai-configs')
 router.register(r'admin/users', UserViewSet, basename='admin-users')
-router.register(r'projects', ProjectViewSet)
-router.register(r'project-cards', ProjectCardViewSet)
+router.register(r'projects', ProjectViewSet, basename='projects')
+router.register(r'project-cards', ProjectCardViewSet, basename='project-cards')
 
 from rest_framework.authtoken import views as auth_views
 from .views import UserSimpleListView, AIAnalysisView, AgentRouterView, AIConfigsListView, AIConnectionTestView, LegacyImportView, ResetTestDataView, SeedTargetsView

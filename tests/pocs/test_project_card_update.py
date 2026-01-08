@@ -5,8 +5,8 @@
 - 验证 `PATCH /project-cards/{id}/` 修改 `sub_stage` 能触发 `ProjectChangeLog` 记录。
 
 关联代码参考:
-- 模型: [models.py:ProjectCard.save](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/models.py#L905-L921)
-- 视图集: [views.py:ProjectCardViewSet.perform_update](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L740-L743)
+- 模型: [models.py:ProjectCard.save](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/models.py#L905-L921)
+- 视图集: [views.py:ProjectCardViewSet.perform_update](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L740-L743)
 """
 
 import json

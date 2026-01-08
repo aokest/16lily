@@ -39,9 +39,10 @@
           <el-table-column prop="updated_at" label="更新时间" width="180">
              <template #default="{row}">{{ new Date(row.updated_at).toLocaleString() }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="260" fixed="right">
             <template #default="{row}">
               <div class="flex items-center gap-2">
+                <el-button link type="warning" @click="testConnection(row)" :loading="testing">测试</el-button>
                 <el-button v-if="!row.is_active" link type="success" @click="setDefault(row)">设为默认</el-button>
                 <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
                 <el-popconfirm title="确定删除该配置?" @confirm="handleDelete(row)">
@@ -110,12 +111,33 @@ const isEdit = ref(false);
 const form = ref({
   id: null,
   name: '',
-  provider: 'openai',
+  provider: 'OPENAI',
   model_name: '',
   base_url: '',
   api_key: '',
   supports_vision: false
 });
+
+const testing = ref(false);
+
+async function testConnection(row: any) {
+  testing.value = true;
+  try {
+    // 修正接口路径和参数传递方式，符合后端 DRF Action 规范
+    const res = await api.post(`admin/ai-configs/${row.id}/test_connection/`);
+    if (res.data.status === 'success') {
+      ElMessage.success('连接测试成功: ' + (res.data.message || 'AI 响应正常'));
+    } else {
+      ElMessage.error('连接测试失败: ' + (res.data.detail || res.data.message));
+    }
+  } catch (e: any) {
+    console.error('AI Test Error:', e);
+    const detail = e.response?.data?.detail || e.response?.data?.message || e.message;
+    ElMessage.error('测试出错: ' + detail);
+  } finally {
+    testing.value = false;
+  }
+}
 
 async function fetchData(){
   loading.value = true;
@@ -176,8 +198,9 @@ async function setDefault(row:any){
 }
 
 function getProviderTag(p:string){
-  const map:any = { deepseek:'primary', openai:'success', gemini:'warning', anthropic:'danger' };
-  return map[p] || 'info';
+  const provider = (p || '').toLowerCase();
+  const map:any = { deepseek:'primary', openai:'success', gemini:'warning', anthropic:'danger', ollama:'info' };
+  return map[provider] || 'info';
 }
 
 onMounted(fetchData);

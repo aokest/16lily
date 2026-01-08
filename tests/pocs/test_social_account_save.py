@@ -5,7 +5,7 @@
 - 验证 `POST /social-accounts/` 支持前端别名 `account_username` 并成功创建
 
 关联代码参考:
-- 序列化器: [serializers.py:SocialMediaAccountSerializer](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/serializers.py#L279-L296)
+- 序列化器: [serializers.py:SocialMediaAccountSerializer](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/serializers.py#L279-L296)
 """
 
 import json

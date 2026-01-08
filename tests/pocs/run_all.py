@@ -5,7 +5,7 @@
 - 一键运行 8 个复现脚本，生成简要结果汇总，便于定位与回归。
 
 执行方式:
-- 在宿主机运行: `python opportunity_system/tests/pocs/run_all.py`
+- 在宿主机运行: `python 16lily/tests/pocs/run_all.py`
 
 输出:
 - 终端打印每个用例的状态摘要

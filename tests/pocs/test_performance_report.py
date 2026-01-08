@@ -5,7 +5,7 @@
 - 验证 `GET /reports/performance/` 返回结构包含 `totals/groups/monthly` 等键
 
 关联代码参考:
-- 视图: [views.py:PerformanceReportView.get](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/opportunity_system/core/views.py#L425-L488)
+- 视图: [views.py:PerformanceReportView.get](file:///Users/aoke/code%20test/%E5%95%86%E6%9C%BA%E8%B7%9F%E8%BF%9B%E5%8F%8A%E4%B8%9A%E7%BB%9F%E8%AE%A1/16lily/core/views.py#L425-L488)
 """
 
 import requests

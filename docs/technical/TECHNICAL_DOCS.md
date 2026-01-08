@@ -18,7 +18,7 @@
 ## 2. 目录结构说明
 
 ```text
-opportunity_system/
+16lily/
 ├── backend/                # Django 项目配置
 │   ├── settings.py         # 核心配置 (CORS, Apps, DB)
 │   └── urls.py             # 根路由
