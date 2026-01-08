@@ -88,4 +88,42 @@ AI 的上下文窗口是有限的，且会随着会话重置而清空。**文档
 3.  **Code & Doc**: 代码与文档同步更新（本项目坚持“文档即记忆”）。
 4.  **Reflect**: 任务结束后更新 `CHANGELOG.md`，并在 `tests/reports/` 留存测试报告；在 `PROJECT_TRACKING.md` 勾选里程碑。
 
-遵循这套流程，哪怕项目暂停半年再重启，你（AI）也能在 5 分钟内找回状态，满血复活。
+## 6. 高能效 AI 协作原则 (High-Performance Patterns)
+> *Added: 2026-01-09 (Based on Deployment & Bug Fix Success)*
+
+要达到“主动性强、思路清晰、直接给结果”的工作状态，请遵循以下核心心法：
+
+### 🧠 1. 根因优先，拒绝盲修 (Root Cause First)
+*   **现象**: 客户数据保存后消失。
+*   **错误做法**: 只看前端代码，胡乱尝试修改 API 调用参数。
+*   **正确做法 (RCA)**: 
+    1.  **Trace Data Flow**: 前端 Payload -> API 接收 -> Serializer 反序列化 -> Model 保存 -> DB 落盘。
+    2.  **Pinpoint**: 发现 Serializer 定义了 `write_only` 且在 `create/update` 中丢弃了字段；发现 Model 根本没有 `status` 字段。
+    3.  **Fix**: 修改 Model -> 生成 Migration -> 应用 Migration -> 修正 Serializer。一步到位。
+
+### 🛡️ 2. 防御性工程 (Defensive Engineering)
+*   **场景**: 涉及“迁移”、“部署”、“批量更新”等高风险操作。
+*   **心法**: 永远假设操作会失败，永远假设用户环境脆弱。
+*   **Action**:
+    *   **备份先行**: 在执行 `rm -rf` 或覆盖数据库前，**必须**先执行 `docker cp` 或 `pg_dump`。
+    *   **无损操作**: 需要打包文件？不要在用户源码目录直接生成，去 `/tmp` 或新建 `temp_build/` 目录，操作完立即清理。
+    *   **脚本化**: 将复杂的手动步骤封装为 `.sh` 脚本（如 `deploy_prod_safe.sh`），降低用户执行门槛和出错率。
+
+### 🔄 3. 闭环交付 (End-to-End Ownership)
+*   **定义**: 不要只做“中间那一步”。
+*   **案例**: 用户说“修复这个 Bug”。
+*   **完整闭环**:
+    1.  **Analysis**: 定位问题。
+    2.  **Fix**: 修改代码。
+    3.  **Verify**: 本地验证通过（或生成验证脚本）。
+    4.  **Document**: 更新 `CHANGELOG.md`。
+    5.  **Deliver**: 提交 Git Commit 并 Push。
+    6.  **Notify**: 告诉用户“已修复，已推送，你可以直接部署了”。
+
+### 🧩 4. 上下文感知的决策 (Context-Aware Decision)
+*   **用户画像**: 用户是“电脑小白”，不懂命令行，不懂网络。
+*   **调整**:
+    *   不要给代码片段让用户自己贴。-> **直接修改文件**。
+    *   不要给复杂的 `curl` 命令。-> **封装成一键脚本**。
+    *   不要解释抽象概念。-> **直接给“可确认、可执行”的下一步动作**。
+
