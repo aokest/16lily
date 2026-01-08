@@ -25,10 +25,6 @@ class CustomerSerializer(serializers.ModelSerializer):
     contacts = serializers.SerializerMethodField()
     tags_detail = serializers.SerializerMethodField()
     tag_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False)
-    # 兼容前端扩展字段（忽略持久化）
-    scale = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    status = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    legal_representative = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     class Meta:
         model = Customer
@@ -51,16 +47,12 @@ class CustomerSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # 移除非模型字段
         tag_ids = validated_data.pop('tag_ids', [])
-        for k in ['scale','status','legal_representative']:
-            validated_data.pop(k, None)
         obj = super().create(validated_data)
         if tag_ids:
             obj.tags.set(CustomerTag.objects.filter(id__in=tag_ids))
         return obj
     def update(self, instance, validated_data):
         tag_ids = validated_data.pop('tag_ids', None)
-        for k in ['scale','status','legal_representative']:
-            validated_data.pop(k, None)
         obj = super().update(instance, validated_data)
         if tag_ids is not None:
             obj.tags.set(CustomerTag.objects.filter(id__in=tag_ids))

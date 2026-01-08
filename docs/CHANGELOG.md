@@ -3,6 +3,19 @@
 > **项目**: 智能商机跟进及业绩统计系统
 > **维护者**: Trae AI Assistant
 
+## v1.2.2 (2026-01-09)
+
+### 🐞 严重 Bug 修复 (Critical Fixes)
+- **客户数据丢失修复**:
+    - 修复了后端 `Customer` 模型缺失 `status`、`scale`、`legal_representative` 字段导致的数据无法保存问题。
+    - 修正了 `CustomerSerializer` 错误的 `write_only` 定义，确保客户状态和规模等信息能正确写入数据库。
+    - **影响范围**: 彻底解决了前端客户列表状态显示空白、编辑后无法保存的问题。
+
+### 🛡️ 运维与安全 (DevOps)
+- **部署脚本升级 (v1.3)**:
+    - 增强 `deploy_prod_safe.sh`，新增 Docker 卷 (`media_volume`) 的自动备份与恢复能力。
+    - 优化一键还原逻辑，支持同时恢复数据库 (`postgres_data`) 和非结构化数据（图片/文档）。
+
 ## v1.2.1 (2026-01-08)
 
 ### 🐞 修复与稳定性 (Fixes & Stability)
