@@ -98,207 +98,32 @@ def process_opportunity_ai(sender, instance, **kwargs):
     # 注意：这里我们只在创建时自动生成一条“创建”日志。
     # 后续的更新，如果通过 Admin 编辑，通常 Admin 不会自动创建 Log，除非我们手动 override save_model
     # 但为了确保大屏有数据，我们在 created 时强制生成一条。
-    pass # 移动到 post_save 处理，因为需要 instance.pk
 
 @receiver(post_save, sender=Opportunity)
-def auto_create_opportunity_log(sender, instance, created, **kwargs):
-    from .models import OpportunityLog, ActivityLog
+def log_opportunity_created(sender, instance, created, **kwargs):
     if created:
-        operator = getattr(instance, 'creator', None) or getattr(instance, 'sales_manager', None)
-        OpportunityLog.objects.create(
-            opportunity=instance,
-            operator=operator,
-            action="创建商机",
-            content=f"创建了商机：{instance.name}，预计金额：{instance.amount}"
-        )
-    
-    # 统一动态日志
-    try:
-        operator = getattr(instance, 'creator', None) or getattr(instance, 'sales_manager', None)
-        dept_name = ""
-        if operator and hasattr(operator, 'profile') and operator.profile.department_link:
-            dept_name = operator.profile.department_link.name
+        try:
+            OpportunityLog.objects.create(
+                opportunity=instance,
+                operator=instance.creator,
+                action='创建商机',
+                content=f"创建新商机：{instance.name}"
+            )
             
-        ActivityLog.objects.create(
-            type=ActivityLog.Type.OPPORTUNITY,
-            action="创建" if created else "更新",
-            content=f"{instance.name} (预计金额: {instance.amount})",
-            actor=operator,
-            department=dept_name,
-            content_type=ContentType.objects.get_for_model(Opportunity),
-            object_id=instance.id
-        )
-    except Exception:
+            # 同时也记录到 ActivityLog
+            ActivityLog.objects.create(
+                type=ActivityLog.Type.OPPORTUNITY,
+                action="创建商机",
+                content=f"{instance.name}-{instance.customer_company}",
+                actor=instance.creator,
+                content_type=ContentType.objects.get_for_model(Opportunity),
+                object_id=instance.id
+            )
+        except Exception:
+            pass
+    else:
+        # Check if stage changed? (Optional: if needed)
         pass
-
-@receiver(post_save, sender=Project)
-def log_project_activity(sender, instance, created, **kwargs):
-    try:
-        from .models import ActivityLog
-        operator = instance.owner
-        dept_name = ""
-        if operator and hasattr(operator, 'profile') and operator.profile.department_link:
-            dept_name = operator.profile.department_link.name
-
-        ActivityLog.objects.create(
-            type=ActivityLog.Type.PROJECT,
-            action="创建" if created else "更新",
-            content=f"项目: {instance.name} ({instance.code})",
-            actor=operator,
-            department=dept_name,
-            content_type=ContentType.objects.get_for_model(Project),
-            object_id=instance.id
-        )
-    except Exception:
-        pass
-
-@receiver(post_save, sender=DailyReport)
-def log_daily_report_activity(sender, instance, created, **kwargs):
-    try:
-        from .models import ActivityLog
-        operator = instance.user
-        dept_name = ""
-        if operator and hasattr(operator, 'profile') and operator.profile.department_link:
-            dept_name = operator.profile.department_link.name
-
-        ActivityLog.objects.create(
-            type=ActivityLog.Type.DAILY_REPORT,
-            action="创建" if created else "更新",
-            content=f"日报: {instance.date}",
-            actor=operator,
-            department=dept_name,
-            content_type=ContentType.objects.get_for_model(DailyReport),
-            object_id=instance.id
-        )
-    except Exception:
-        pass
-
-@receiver(post_delete, sender=Opportunity)
-@receiver(post_delete, sender=Customer)
-@receiver(post_delete, sender=Contact)
-@receiver(post_delete, sender=Project)
-def log_deletion_activity(sender, instance, **kwargs):
-    try:
-        from .models import ActivityLog
-        # 尝试从 instance 中获取最后的操作人，如果没记录则为空
-        # 注意：post_delete 时 instance 已经从数据库移除，但对象属性还在内存中
-        actor = getattr(instance, 'owner', None) or getattr(instance, 'creator', None) or getattr(instance, 'sales_manager', None) or getattr(instance, 'user', None)
-        
-        dept_name = ""
-        if actor and hasattr(actor, 'profile') and actor.profile.department_link:
-            dept_name = actor.profile.department_link.name
-
-        model_name = sender._meta.verbose_name
-        ActivityLog.objects.create(
-            type=ActivityLog.Type.SYSTEM,
-            action="删除",
-            content=f"删除了{model_name}: {getattr(instance, 'name', str(instance))}",
-            actor=actor,
-            department=dept_name
-        )
-    except Exception:
-        pass
-
-    # if created and instance.approval_status == ApprovalStatus.PENDING:
-    #     approver = find_department_manager(instance.sales_manager)
-    #     create_approval(instance.creator or instance.sales_manager, approver, instance)
-
-@receiver(pre_save, sender=WorkReport)
-def process_workreport_ai(sender, instance, **kwargs):
-    if getattr(instance, 'ai_raw_input', None) and not instance.content:
-        data = get_ai_service().parse_work_report(instance.ai_raw_input)
-        if data:
-            instance.content = data.get('content') or instance.content
-            instance.ai_summary = data.get('ai_summary') or instance.ai_summary
-            if data.get('report_type'):
-                for choice in WorkReport.ReportType.choices:
-                    if choice[0] == data.get('report_type'):
-                        instance.type = data.get('report_type')
-                        break
-
-@receiver(pre_save, sender=Competition)
-def process_competition_ai(sender, instance, **kwargs):
-    is_new = instance.pk is None
-    is_placeholder = instance.name in ['新赛事', 'New Competition', '赛事', '未命名']
-    
-    if getattr(instance, 'ai_raw_text', None) and (is_new or is_placeholder):
-        data = get_ai_service().parse_competition(instance.ai_raw_text)
-        if data:
-            instance.name = data.get('name') or instance.name
-            if data.get('time'):
-                instance.time = safe_parse_date(data.get('time'))
-            instance.location = data.get('location') or instance.location
-            instance.type = data.get('type') or instance.type
-            instance.owner_name = data.get('owner_name') or instance.owner_name
-
-@receiver(pre_save, sender=MarketActivity)
-def process_activity_ai(sender, instance, **kwargs):
-    is_new = instance.pk is None
-    is_placeholder = instance.name in ['新活动', 'New Activity', '活动', '未命名']
-    
-    if getattr(instance, 'ai_raw_text', None) and (is_new or is_placeholder):
-        data = get_ai_service().parse_market_activity(instance.ai_raw_text)
-        if data:
-            instance.name = data.get('name') or instance.name
-            if data.get('time'):
-                instance.time = safe_parse_date(data.get('time'))
-            instance.location = data.get('location') or instance.location
-            instance.type = data.get('type') or instance.type
-
-@receiver(pre_save, sender=Customer)
-def process_customer_ai(sender, instance, **kwargs):
-    is_new = instance.pk is None
-    is_placeholder = instance.name in ['新客户', 'New Customer', '客户', '未命名']
-    
-    raw_text = getattr(instance, 'ai_raw_text', None)
-    if raw_text and (is_new or is_placeholder):
-        data = get_ai_service().parse_customer(raw_text)
-        if data:
-            instance.name = data.get('name') or instance.name
-            instance.industry = data.get('industry') or instance.industry
-            instance.website = data.get('website') or instance.website
-            # Note: legal_representative and scale are not in the current model
-
-@receiver(post_save, sender=Customer)
-def log_customer_created(sender, instance, created, **kwargs):
-    try:
-        from .models import ActivityLog
-        ActivityLog.objects.create(
-            type=ActivityLog.Type.CUSTOMER,
-            action="创建客户" if created else "更新客户",
-            content=instance.name,
-            actor=instance.owner,
-            content_type=ContentType.objects.get_for_model(Customer),
-            object_id=instance.id
-        )
-    except Exception:
-        pass
-
-    # status is not on Customer model in current version
-    # if created and hasattr(instance, 'status') and instance.status in ['PENDING', 'POTENTIAL']:
-    #     approver = find_department_manager(instance.owner)
-    #     create_approval(instance.owner, approver, instance)
-
-@receiver(pre_save, sender=Contact)
-def process_contact_ai(sender, instance, **kwargs):
-    is_new = instance.pk is None
-    is_placeholder = instance.name in ['新联系人', 'New Contact', '联系人', '未命名']
-    
-    raw_text = getattr(instance, 'ai_raw_text', None)
-    
-    if raw_text and (is_new or is_placeholder):
-        data = get_ai_service().parse_contact(raw_text)
-        if data:
-            instance.name = data.get('name') or instance.name
-            instance.title = data.get('title') or instance.title
-            instance.phone = data.get('phone') or instance.phone
-            instance.email = data.get('email') or instance.email
-            
-            # Try to link Customer if not set
-            if not instance.customer_id and data.get('customer_name'):
-                cust = Customer.objects.filter(name__icontains=data.get('customer_name')).first()
-                if cust:
-                    instance.customer = cust
 
 @receiver(post_save, sender=Contact)
 def log_contact_created(sender, instance, created, **kwargs):
@@ -318,114 +143,48 @@ def log_contact_created(sender, instance, created, **kwargs):
     except Exception:
         pass
 
-@receiver(post_save, sender=Competition)
-def log_competition_created(sender, instance, created, **kwargs):
+@receiver(post_save, sender=Project)
+def log_project_created(sender, instance, created, **kwargs):
     try:
         from .models import ActivityLog
         ActivityLog.objects.create(
-            type=ActivityLog.Type.COMPETITION,
-            action="创建赛事" if created else "更新赛事",
-            content=instance.name,
-            actor=getattr(instance, 'creator', None),
-            content_type=ContentType.objects.get_for_model(Competition),
+            type=ActivityLog.Type.PROJECT,
+            action="创建项目" if created else "更新项目",
+            content=f"{instance.name}",
+            actor=instance.manager,
+            content_type=ContentType.objects.get_for_model(Project),
             object_id=instance.id
         )
     except Exception:
         pass
-    
-    # Competition doesn't have status in this version
-    # if created and hasattr(instance, 'status') and instance.status == ApprovalStatus.PENDING:
-    #     approver = User.objects.filter(profile__department=Department.GAME).filter(is_superuser=True).first() or find_department_manager(instance.creator)
-    #     create_approval(instance.creator, approver, instance)
 
-@receiver(post_save, sender=MarketActivity)
-def log_activity_created(sender, instance, created, **kwargs):
-    try:
-        from .models import ActivityLog
-        ActivityLog.objects.create(
-            type=ActivityLog.Type.ACTIVITY,
-            action="创建活动" if created else "更新活动",
-            content=instance.name,
-            actor=getattr(instance, 'owner', None), # owner instead of creator
-            content_type=ContentType.objects.get_for_model(MarketActivity),
-            object_id=instance.id
-        )
-    except Exception:
-        pass
-    # if created and instance.status == ApprovalStatus.PENDING:
-    #     approver = User.objects.filter(profile__department=Department.GROUP_MARKETING).filter(is_superuser=True).first() or find_department_manager(instance.creator)
-    #     create_approval(instance.creator, approver, instance)
-
-@receiver(post_save, sender=OpportunityLog)
-def process_opportunity_transfer(sender, instance, created, **kwargs):
-    """
-    处理商机移交逻辑：当创建了一条动作为'商机移交'的跟进记录时，自动发起移交审批流程
-    """
-    if created and instance.action == '商机移交' and getattr(instance, 'transfer_target', None):
-        # 1. 创建移交申请
-        application = OpportunityTransferApplication.objects.create(
-            opportunity=instance.opportunity,
-            applicant=instance.operator,
-            current_owner=instance.opportunity.sales_manager,
-            target_owner=instance.transfer_target,
-            reason=instance.content or "通过跟进记录发起的移交",
-            status=ApprovalStatus.PENDING
-        )
-        
-        # 2. 查找审批人 (直属上级 > 超级管理员)
-        manager = None
-        current_owner = instance.opportunity.sales_manager
-        
-        # 尝试获取直属上级
-        if hasattr(current_owner, 'profile') and current_owner.profile.report_to:
-            manager = current_owner.profile.report_to
-            
-        # 兜底：超级管理员
-        if not manager:
-            manager = User.objects.filter(is_superuser=True).first()
-            
-        # 3. 创建待办事项
-        if manager:
-            TodoTask.objects.create(
-                title=f"商机移交审批: {instance.opportunity.name}",
-                description=f"来源: 跟进记录\n申请人: {instance.operator.username}\n目标负责人: {instance.transfer_target.username}\n原因: {application.reason}",
-                source_type=TodoTask.SourceType.WORKFLOW,
-                assignee=manager,
-                content_object=application
+@receiver(post_save, sender=DailyReport)
+def log_daily_report_created(sender, instance, created, **kwargs):
+    if created:
+        try:
+            from .models import ActivityLog
+            ActivityLog.objects.create(
+                type=ActivityLog.Type.ACTIVITY,
+                action="提交日报",
+                content=f"{instance.date} 日报",
+                actor=instance.user,
+                content_type=ContentType.objects.get_for_model(DailyReport),
+                object_id=instance.id
             )
-            create_approval(instance.operator, manager, application)
-        # Receiver approval
-        TodoTask.objects.create(
-            title=f"确认接收商机: {instance.opportunity.name}",
-            description=f"请确认接收该商机并与销售经理协同后续工作。",
-            source_type=TodoTask.SourceType.WORKFLOW,
-            assignee=instance.transfer_target,
-            content_object=application
-        )
-        create_approval(instance.operator, instance.transfer_target, application)
-    try:
-        from .models import ActivityLog
-        ActivityLog.objects.create(
-            type=ActivityLog.Type.OPPORTUNITY,
-            action=instance.action,
-            content=instance.content,
-            actor=instance.operator,
-            content_type=ContentType.objects.get_for_model(Opportunity),
-            object_id=instance.opportunity_id
-        )
-    except Exception:
-        pass
+        except Exception:
+            pass
 
 @receiver(user_logged_in)
 def log_user_login(sender, request, user, **kwargs):
     try:
         from .models import ActivityLog
+        # 尝试获取用户部门
         dept_name = ""
-        if hasattr(user, 'profile') and user.profile.department_link:
-            dept_name = user.profile.department_link.name
-
+        if hasattr(user, 'profile'):
+            dept_name = user.profile.get_department_display()
+            
         ActivityLog.objects.create(
-            type=ActivityLog.Type.USER,
+            type=ActivityLog.Type.ACTIVITY,
             action="登录",
             content=f"用户 {user.username} 登录系统",
             actor=user,
@@ -438,12 +197,13 @@ def log_user_login(sender, request, user, **kwargs):
 def log_user_logout(sender, request, user, **kwargs):
     try:
         from .models import ActivityLog
+        # 尝试获取用户部门
         dept_name = ""
-        if user and hasattr(user, 'profile') and user.profile.department_link:
-            dept_name = user.profile.department_link.name
+        if hasattr(user, 'profile'):
+            dept_name = user.profile.get_department_display()
 
         ActivityLog.objects.create(
-            type=ActivityLog.Type.USER,
+            type=ActivityLog.Type.ACTIVITY,
             action="登出",
             content=f"用户 {user.username if user else '未知'} 登出系统",
             actor=user,
@@ -521,30 +281,28 @@ def process_approval_result(sender, instance, created, **kwargs):
             except Exception:
                 pass
 
-from django.contrib.auth.signals import user_logged_in, user_logged_out
-
-@receiver(user_logged_in)
-def log_user_login(sender, request, user, **kwargs):
-    try:
-        from .models import ActivityLog
-        ActivityLog.objects.create(
-            type='ACTIVITY', # Use string to avoid circular import issues if Enum not ready
-            action='用户登录',
-            content=f"用户 {user.username} 登录系统",
-            actor=user
-        )
-    except Exception:
-        pass
-
-@receiver(user_logged_out)
-def log_user_logout(sender, request, user, **kwargs):
-    try:
-        from .models import ActivityLog
-        ActivityLog.objects.create(
-            type='ACTIVITY',
-            action='用户登出',
-            content=f"用户 {user.username} 登出系统",
-            actor=user
-        )
-    except Exception:
-        pass
+@receiver(pre_save, sender=Customer)
+def generate_customer_code(sender, instance, **kwargs):
+    """
+    自动生成客户编号: CUST-{YYYYMM}-{SEQ}
+    例如: CUST-202310-001
+    """
+    if not instance.customer_code:
+        now = datetime.datetime.now()
+        prefix = f"CUST-{now.strftime('%Y%m')}"
+        
+        # 查找当月最大的编号
+        # 注意：简单实现，高并发下可能有冲突，但对于内部CRM系统足够
+        last_cust = Customer.objects.filter(customer_code__startswith=prefix).order_by('-customer_code').first()
+        
+        if last_cust and last_cust.customer_code:
+            try:
+                # 提取序号部分
+                last_seq = int(last_cust.customer_code.split('-')[-1])
+                new_seq = last_seq + 1
+            except ValueError:
+                new_seq = 1
+        else:
+            new_seq = 1
+            
+        instance.customer_code = f"{prefix}-{new_seq:03d}"

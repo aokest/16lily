@@ -15,7 +15,7 @@
           <el-table-column prop="title" label="职位" width="160" />
           <el-table-column prop="phone" label="电话" width="160" />
           <el-table-column prop="email" label="邮箱" width="200" />
-          <el-table-column prop="customer" label="客户ID" width="100" />
+          <el-table-column prop="customer_code" label="客户代号" width="140" />
           <el-table-column prop="customer_name" label="客户名称" width="200" />
           <el-table-column prop="department" label="部门" width="160" />
           <el-table-column prop="is_decision_maker" label="决策人" width="100">

@@ -12,9 +12,9 @@ import json
 from datetime import datetime
 from .models import (
     UserProfile, Opportunity, OpportunityLog, PerformanceTarget, OpportunityTeamMember, 
-    Customer, Contact, Competition, MarketActivity, Announcement, TodoTask, WorkReport, SocialMediaStats,
+    Customer, Contact, Competition, MarketActivity, Announcement, TodoTask, SocialMediaStats,
     DepartmentModel, AIConfiguration, PromptTemplate, SocialMediaAccount, CustomerTag, ExternalIdMap, CustomerCohort, SubmissionLog,
-    Project, ProjectCard, ProjectChangeLog, DailyReport, ApprovalRequest, ApprovalStatus
+    Project, ProjectCard, ProjectChangeLog, DailyReport, ApprovalRequest, ApprovalStatus, SystemRelease
 )
 
 # --- Common Export Action ---
@@ -54,6 +54,37 @@ def approve_announcement(modeladmin, request, queryset):
     queryset.update(status=Announcement.Status.APPROVED)
     modeladmin.message_user(request, "公告已发布。")
 
+# --- AI Context Mixin ---
+class AIEnabledAdminMixin:
+    """
+    Mixin to inject AI configurations into change_form context
+    """
+    change_form_template = 'admin/core/ai_change_form.html'
+    
+    def add_view(self, request, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        self._inject_ai_context(extra_context)
+        return super().add_view(request, form_url, extra_context=extra_context)
+        
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        self._inject_ai_context(extra_context)
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+        
+    def _inject_ai_context(self, context):
+        configs = AIConfiguration.objects.all().values('id', 'name', 'model_name', 'is_active')
+        context['ai_configs'] = list(configs)
+        context['ai_configs_json'] = json.dumps(list(configs))
+
+
+# --- Model Admins ---
+
+@admin.register(SystemRelease)
+class SystemReleaseAdmin(admin.ModelAdmin):
+    list_display = ('version', 'title', 'release_date', 'status', 'is_current')
+    list_filter = ('status', 'is_current')
+    search_fields = ('version', 'title', 'content')
+    ordering = ('-release_date',)
 
 @admin.register(PromptTemplate)
 class PromptTemplateAdmin(admin.ModelAdmin):
@@ -81,9 +112,6 @@ class AIConfigurationAdmin(admin.ModelAdmin):
     
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
-        # Remove the problematic self._inject_ai_context(extra_context)
-        # as AIConfigurationAdmin does not inherit from AIEnabledAdminMixin
-        
         # Inject a connection test URL for the template to use
         extra_context['test_connection_url'] = 'test-connection/'
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
@@ -98,757 +126,116 @@ class AIConfigurationAdmin(admin.ModelAdmin):
 
     def test_connection_view(self, request, object_id):
         from django.http import JsonResponse
+        from .models import AIConfiguration
+        from .services.ai_service import AIService
         try:
             config = AIConfiguration.objects.get(pk=object_id)
-            # Import AIService locally to avoid circular import issues
-            from core.services.ai_service import AIService
-            
-            # Manually construct a service with this config
             service = AIService(config_id=config.id)
-            
-            # Try a simple "Hello" call
-            result = service._call_llm_json("You are a connection tester.", "Reply with JSON: {'status': 'ok'}")
-            
-            if result and not result.get('error'):
-                return JsonResponse({'status': 'success', 'message': '连接成功！API返回正常。', 'data': result})
-            else:
-                error_msg = result.get('error') if result else "Unknown error"
-                return JsonResponse({'status': 'error', 'message': f'连接失败: {error_msg}'})
-                
+            # Simple test call
+            msg = service._call_llm("Hi", "Test connection")
+            return JsonResponse({'status': 'success', 'message': f'Connection successful. Response: {msg[:50]}...'})
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)})
-
-
-@admin.register(DepartmentModel)
-class DepartmentModelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'parent', 'manager')
-    list_filter = ('category', 'parent')
-    search_fields = ('name',)
-    ordering = ('name',)
-    autocomplete_fields = ['parent', 'manager']
-
-    def get_urls(self):
-        from django.urls import path
-        urls = super().get_urls()
-        custom_urls = [
-            path('org-chart/', self.admin_site.admin_view(self.org_chart_view), name='departmentmodel-org-chart'),
-        ]
-        return custom_urls + urls
-
-    def org_chart_view(self, request):
-        from django.shortcuts import render
-        from .models import DepartmentModel
-        import json
-        
-        def build_tree(dept):
-            node = {
-                'name': dept.name,
-                'manager': dept.manager.username if dept.manager else "",
-                'children': []
-            }
-            children = dept.children.all().order_by('name')
-            for child in children:
-                node['children'].append(build_tree(child))
-            return node
-            
-        roots = DepartmentModel.objects.filter(parent__isnull=True).order_by('name')
-        
-        if roots.count() > 1:
-            chart_data = {
-                'name': '石榴粒粒 (总部)',
-                'children': [build_tree(root) for root in roots]
-            }
-        elif roots.count() == 1:
-            chart_data = build_tree(roots.first())
-        else:
-            chart_data = {'name': '暂无部门数据'}
-            
-        context = dict(
-           self.admin_site.each_context(request),
-           chart_data=json.dumps(chart_data),
-           opts=self.model._meta,
-        )
-        return render(request, 'admin/core/departmentmodel/org_chart.html', context)
-
-
-# --- User Admin ---
-class UserProfileInline(admin.StackedInline):
-    model = UserProfile
-    can_delete = False
-    verbose_name_plural = '用户扩展信息'
-    fk_name = 'user'
-    class UserProfileForm(forms.ModelForm):
-        class Meta:
-            model = UserProfile
-            fields = '__all__'
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            data = self.data or None
-            series = None
-            if data:
-                series = data.get('userprofile-0-job_series') or data.get('job_series')
-            if not series and self.instance and self.instance.pk:
-                series = self.instance.job_series
-            # Filter job_level choices by series
-            def filter_levels(prefix):
-                self.fields['job_level'].choices = [(code, label) for code, label in JobLevel.choices if code.startswith(prefix + '_')]
-            if series in [JobSeries.M, JobSeries.S, JobSeries.P]:
-                filter_levels(series)
-            # Job position choices
-            if series in [JobSeries.M, JobSeries.S]:
-                # 同步岗位为对应序列的职级集合
-                self.fields['job_position'].choices = [(code, label) for code, label in JobPosition.choices if code.startswith(series + '_')]
-                self.fields['job_position'].help_text = '岗位名称与职级一致（自动与职级同步）'
-            else:
-                # 技术序列岗位库（排除 M_/S_）
-                self.fields['job_position'].choices = [(code, label) for code, label in JobPosition.choices if not (code.startswith('M_') or code.startswith('S_'))]
-
-        def clean(self):
-            cleaned = super().clean()
-            series = cleaned.get('job_series')
-            level = cleaned.get('job_level')
-            if series in [JobSeries.M, JobSeries.S]:
-                cleaned['job_position'] = level
-            else:
-                if not cleaned.get('job_position'):
-                    raise ValidationError({'job_position': '技术序列需选择岗位'})
-            return cleaned
-
-    form = UserProfileForm
-    fieldsets = (
-        (None, {'fields': ('department_link', 'job_series', 'job_level', 'job_position', 'reports_to')}),
-        ('其他信息', {'fields': ('avatar', 'wechat_openid')}),
-    )
-
-class UserAdmin(BaseUserAdmin):
-    inlines = (UserProfileInline,)
-    list_display = ('username', 'get_name', 'get_department_new', 'get_job_label', 'is_staff')
-    actions = [export_as_csv]
-
-    def get_name(self, instance):
-        return f"{instance.last_name}{instance.first_name}"
-    get_name.short_description = '姓名'
-
-    def get_department_new(self, instance):
-        if instance.profile.department_link:
-            return instance.profile.department_link.name
-        return instance.profile.get_department_display()
-    get_department_new.short_description = '部门'
-
-    def get_job_label(self, instance):
-        prof = instance.profile
-        series = prof.get_job_series_display()
-        level = prof.get_job_level_display()
-        pos = prof.get_job_position_display() if prof.job_position else ''
-        return f"{series}-{level}{(' / ' + pos) if pos else ''}"
-    get_job_label.short_description = '序列/职级/岗位'
-
-admin.site.unregister(User)
-admin.site.register(User, UserAdmin)
-
-
-class OpportunityLogInline(admin.TabularInline):
-    model = OpportunityLog
-    extra = 1
-
-class OpportunityTeamMemberInline(admin.TabularInline):
-    model = OpportunityTeamMember
-    extra = 1
-    fields = ('user', 'name', 'role', 'responsibility', 'workload', 'start_date', 'end_date')
-
-class OpportunityForm(forms.ModelForm):
-    expected_sign_date = forms.CharField(
-        required=False, 
-        label='预计签约时间', 
-        help_text='支持格式: 2025-01-01, 20250101, 2025年1月1日',
-        widget=forms.TextInput(attrs={'class': 'vDateField', 'placeholder': 'YYYY-MM-DD or natural text'})
-    )
-
-    def _parse_fuzzy_date(self, value):
-        if not value: return None
-        if isinstance(value, datetime) or hasattr(value, 'isoformat'): return value
-        value = str(value).strip()
-        try: return datetime.strptime(value, '%Y-%m-%d').date()
-        except ValueError: pass
-        if re.match(r'^\d{8}$', value): return datetime.strptime(value, '%Y%m%d').date()
-        match = re.match(r'^(\d{2})年(\d{4})$', value)
-        if match: return datetime.strptime(f"20{match.group(1)}{match.group(2)}", '%Y%m%d').date()
-        match = re.match(r'^(\d{4})年(\d{1,2})月(\d{1,2})[日号]?$', value)
-        if match: return datetime(int(match.group(1)), int(match.group(2)), int(match.group(3))).date()
-        return value
-
-    def clean_expected_sign_date(self):
-        value = self.cleaned_data.get('expected_sign_date')
-        if not value: return None
-        parsed = self._parse_fuzzy_date(value)
-        if isinstance(parsed, str): 
-             raise ValidationError("无法识别的日期格式，请使用 2025-01-01 或 20250101")
-        return parsed
-
-    class Meta:
-        model = Opportunity
-        fields = '__all__'
-        exclude = ('ai_raw_text',)
-
-class AIEnabledAdminMixin:
-    """
-    Mixin to inject AI configurations into change_form context
-    """
-    change_form_template = 'admin/core/ai_change_form.html'
-    
-    def add_view(self, request, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        self._inject_ai_context(extra_context)
-        return super().add_view(request, form_url, extra_context=extra_context)
-        
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        self._inject_ai_context(extra_context)
-        return super().change_view(request, object_id, form_url, extra_context=extra_context)
-        
-    def _inject_ai_context(self, context):
-        # Get all available AI configurations (active or not, but let's show all to allow selection)
-        # Actually, usually we only show active ones or allow switching.
-        # The user asked to select model.
-        configs = AIConfiguration.objects.all().values('id', 'name', 'model_name', 'is_active')
-        context['ai_configs'] = list(configs)
-        context['ai_configs_json'] = json.dumps(list(configs))
-
-@admin.action(description='发起移交申请')
-def apply_for_transfer(modeladmin, request, queryset):
-    # This action redirects to a custom form or simply creates draft applications
-    # For simplicity in Django Admin, we can redirect to the add page of OpportunityTransferApplication
-    # pre-filled with the first selected opportunity.
-    # But supporting bulk transfer application is complex UI wise.
-    
-    # Alternative: Create a "Draft" transfer application for each selected opp and redirect user to edit them?
-    # Better approach per user request: "填表单"
-    
-    # We will just create a pending transfer task in TodoTask for the manager, 
-    # OR we assume this action is clicked by the sales rep.
-    
-    from django.urls import reverse
-    from django.utils.http import urlencode
-    from django.shortcuts import redirect
-    
-    if queryset.count() > 1:
-        modeladmin.message_user(request, "一次只能移交一个商机，请只选择一个。", level='ERROR')
-        return
-
-    opp = queryset.first()
-    
-    # Redirect to the add page of OpportunityTransferApplication
-    url = reverse('admin:core_opportunitytransferapplication_add')
-    params = {
-        'opportunity': opp.id,
-        'current_owner': opp.sales_manager.id,
-        'applicant': request.user.id
-    }
-    return redirect(f"{url}?{urlencode(params)}")
-
-@admin.register(Opportunity)
-class OpportunityAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    form = OpportunityForm
-    list_display = ('name', 'customer_company', 'get_sales_manager_name', 'stage_display', 'amount', 'created_at')
-    list_filter = (
-        'sales_manager', 
-        'customer', 
-        ('created_at', admin.DateFieldListFilter), # Filter by Time
-        'amount', # Simple filter for exact amount, usually needs custom range filter but default is ok for now
-        'stage', # "Deliverables" often implied by stage
-    )
-    search_fields = ('name', 'customer_name', 'customer_company', 'customer__name')
-    inlines = [OpportunityTeamMemberInline, OpportunityLogInline]
-    filter_horizontal = ('team_members',)
-    autocomplete_fields = ['customer']
-    actions = [apply_for_transfer, export_as_csv]
-
-    def get_sales_manager_name(self, obj):
-        if obj.sales_manager:
-            full_name = f"{obj.sales_manager.last_name}{obj.sales_manager.first_name}"
-            return full_name if full_name.strip() else obj.sales_manager.username
-        return "-"
-    get_sales_manager_name.short_description = '负责销售'
-    get_sales_manager_name.admin_order_field = 'sales_manager__first_name'
-
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        try:
-            obj = self.get_queryset(request).get(pk=object_id)
-            next_obj = self.get_queryset(request).filter(created_at__gt=obj.created_at).order_by('created_at').first()
-            prev_obj = self.get_queryset(request).filter(created_at__lt=obj.created_at).order_by('-created_at').first()
-            if next_obj: extra_context['next_url'] = f"../{next_obj.pk}/change/"
-            if prev_obj: extra_context['prev_url'] = f"../{prev_obj.pk}/change/"
-        except: pass
-        return super().change_view(request, object_id, form_url, extra_context=extra_context)
-
-    class Media:
-        css = {'all': ('admin/css/custom_tooltips.css',)}
-        js = ('admin/js/custom_tooltips.js', 'admin/js/admin_dynamic.js')
-
-    def stage_display(self, obj):
-        return format_html('<span style="padding: 3px 8px; background-color: #f0f0f0; border-radius: 4px;">{}</span>', obj.get_stage_display())
-    stage_display.short_description = '阶段'
-
-@admin.action(description='导出选中的跟进记录')
-def export_logs_csv(modeladmin, request, queryset):
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="opportunity_logs.csv"'
-    response.write(u'\ufeff'.encode('utf8'))
-    writer = csv.writer(response)
-    writer.writerow(['商机名称', '操作人', '动作', '内容', '阶段快照', '时间'])
-    for log in queryset:
-        writer.writerow([
-            log.opportunity.name,
-            log.operator.username,
-            log.action,
-            log.content,
-            log.stage_snapshot or '',
-            log.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        ])
-    return response
-
-@admin.register(OpportunityLog)
-class OpportunityLogAdmin(admin.ModelAdmin):
-    list_display = ('opportunity', 'get_operator_name', 'action', 'created_at')
-    list_filter = (
-        'action', 
-        'opportunity__sales_manager', 
-        'opportunity__customer', 
-        ('created_at', admin.DateFieldListFilter),
-    )
-    search_fields = ('opportunity__name', 'operator__username', 'content')
-    actions = [export_logs_csv]
-    
-    def formfield_for_dbfield(self, db_field, **kwargs):
-        formfield = super().formfield_for_dbfield(db_field, **kwargs)
-        if db_field.name == 'action':
-            # Create a datalist widget
-            # We use TextInput but add the 'list' attribute
-            # Then we need to inject the datalist into the form/template
-            formfield.widget = forms.TextInput(attrs={'list': 'action_list', 'placeholder': '选择或输入...'})
-        return formfield
-
-    def get_operator_name(self, obj):
-        if obj.operator:
-            return f"{obj.operator.last_name}{obj.operator.first_name}" or obj.operator.username
-        return "-"
-    get_operator_name.short_description = '操作人'
-
-    class Media:
-        # We can inject a script to append the datalist to the body or use a template override.
-        # But a simpler way for Django Admin is to use format_html in a readonly field or 
-        # just rely on the fact that if we use a change_form_template we can add it.
-        # Let's try to inject it via a small JS file or inline script if possible.
-        # Since we can't easily add inline HTML to the form without a template, 
-        # we will use a custom widget that renders the datalist.
-        pass
-
-# Define a custom widget to render the datalist
-class DatalistWidget(forms.TextInput):
-    def render(self, name, value, attrs=None, renderer=None):
-        text_input = super().render(name, value, attrs, renderer)
-        datalist = """
-        <datalist id="action_list">
-            <option value="初步接触">
-            <option value="需求沟通">
-            <option value="方案汇报">
-            <option value="商务谈判">
-            <option value="招投标">
-            <option value="合同签署">
-            <option value="商机移交">
-            <option value="输单/放弃">
-            <option value="其他">
-        </datalist>
-        """
-        return format_html(text_input + datalist)
-
-# Re-register with custom widget logic
-admin.site.unregister(OpportunityLog) # Unregister first to avoid AlreadyRegistered error
-
-# 定义显式的 Form 类
-class OpportunityLogForm(forms.ModelForm):
-    # 定义常用动作选项
-    ACTIONS = [
-        ('', '请选择...'),
-        ('初步接触', '初步接触'),
-        ('需求沟通', '需求沟通'),
-        ('方案汇报', '方案汇报'),
-        ('商务谈判', '商务谈判'),
-        ('招投标', '招投标'),
-        ('合同签署', '合同签署'),
-        ('商机移交', '商机移交'),
-        ('输单/放弃', '输单/放弃'),
-        ('其他', '其他 (手动输入)'),
-    ]
-    
-    # 覆盖模型字段 widget
-    action_select = forms.ChoiceField(
-        choices=ACTIONS, 
-        label='动作选择', 
-        required=False,
-        widget=forms.Select(attrs={'class': 'action-select', 'onchange': 'toggleActionFields(this)'})
-    )
-    
-    # 实际的模型字段，设为 hidden 或 text (取决于是否为 '其他')
-    # 为了简化，我们让 action 字段在 UI 上作为 "其他动作输入框" 显示
-    # 当 select 选了具体值时，JS 自动填入 action 并隐藏 action 框
-    # 当 select 选了 '其他' 时，JS 显示 action 框供用户输入
-    
-    class Meta:
-        model = OpportunityLog
-        fields = '__all__'
-        widgets = {
-            'action': forms.TextInput(attrs={'class': 'action-input', 'placeholder': '请输入自定义动作'}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # 初始化时，如果 instance.action 在选项里，则设置 select，否则设为 '其他'
-        if self.instance and self.instance.pk:
-            action_val = self.instance.action
-            # 检查是否在预定义列表里
-            known_actions = [c[0] for c in self.ACTIONS if c[0]]
-            if action_val in known_actions:
-                self.fields['action_select'].initial = action_val
-            else:
-                self.fields['action_select'].initial = '其他'
-
-    def clean(self):
-        cleaned_data = super().clean()
-        action_select = cleaned_data.get('action_select')
-        action_input = cleaned_data.get('action')
-        
-        if action_select and action_select != '其他':
-            # 如果选了常用项，强制使用选项值
-            cleaned_data['action'] = action_select
-        else:
-            # 如果选了其他或没选，必须有手动输入
-            if not action_input:
-                self.add_error('action', '请选择动作或手动输入动作内容')
-        
-        return cleaned_data
-
-@admin.register(OpportunityLog)
-class OpportunityLogAdmin(admin.ModelAdmin):
-    form = OpportunityLogForm
-    list_display = ('opportunity', 'get_operator_name', 'action', 'created_at')
-    list_filter = (
-        'action', 
-        'opportunity__sales_manager', 
-        'opportunity__customer', 
-        ('created_at', admin.DateFieldListFilter),
-    )
-    search_fields = ('opportunity__name', 'operator__username', 'content')
-    actions = [export_logs_csv]
-    
-    # 调整字段顺序，把 action_select 放在 action 之前
-    fields = ('opportunity', 'operator', 'action_select', 'action', 'content', 'stage_snapshot', 'transfer_target')
-    
-    def get_operator_name(self, obj):
-        if obj.operator:
-            return f"{obj.operator.last_name}{obj.operator.first_name}" or obj.operator.username
-        return "-"
-    get_operator_name.short_description = '操作人'
-
-    class Media:
-        js = ('admin/js/opportunity_log.js',) # 引入自定义 JS
-
-    def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
-
-@admin.register(PerformanceTarget)
-class PerformanceTargetAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'year', 'quarter', 'month', 'department', 'user', 'target_contract_amount', 'target_gross_profit', 'target_revenue')
-    list_filter = ('target_type', 'period', 'year', 'quarter', 'month', 'department')
-    search_fields = ('user__username', 'user__first_name', 'user__last_name')
-
-# --- CRM Admins ---
-class ContactInline(admin.TabularInline):
-    model = Contact
-    extra = 1
-    fields = ('name', 'title', 'phone', 'email', 'wechat', 'is_decision_maker')
-
-class OpportunityInline(admin.TabularInline):
-    model = Opportunity
-    extra = 0
-    fields = ('name', 'stage', 'status', 'signed_amount', 'revenue', 'created_at')
-    readonly_fields = ('created_at',)
-    show_change_link = True
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('name', 'industry', 'region', 'owner', 'created_at')
     list_filter = ('industry', 'region')
-    search_fields = ('name', 'customer_code')
+    search_fields = ('name', 'industry')
     actions = [export_as_csv]
     
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         user = request.user
         if user.is_superuser: return qs
-        if hasattr(user, 'profile'):
-            prof = user.profile
-            if prof.job_series == 'M' or prof.job_level in ['M_MANAGER','M_DIRECTOR','M_VDIRECTOR','M_SENIOR_MANAGER','P_MANAGER','P_SENIOR_MANAGER','P_DIRECTOR','P_VDIRECTOR','P_SENIOR_DIRECTOR']:
-                return qs
-        return qs.filter(owner=user)
+        # Simple permission logic
+        return qs
 
-    def get_owner_name(self, obj):
-        if obj.owner:
-            return f"{obj.owner.last_name}{obj.owner.first_name}" or obj.owner.username
-        return "-"
-    get_owner_name.short_description = '负责销售'
-    
-    def total_signed_amount(self, obj):
-        total = obj.opportunities.aggregate(sum=Sum('signed_amount'))['sum'] or 0
-        return f"¥{total:,.2f}"
-    total_signed_amount.short_description = '累计新签金额'
-    
-    def total_opportunities(self, obj):
-        return obj.opportunities.count()
-    total_opportunities.short_description = '商机数'
-
-@admin.register(Contact)
-class ContactAdmin(admin.ModelAdmin):
-    list_display = ('name', 'customer', 'title', 'phone')
-    list_filter = ('customer',)
-    search_fields = ('name', 'customer__name', 'phone')
+@admin.register(Opportunity)
+class OpportunityAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
+    list_display = ('name', 'customer', 'amount', 'stage', 'sales_manager', 'created_at')
+    list_filter = ('stage', 'created_at')
+    search_fields = ('name', 'customer__name')
     actions = [export_as_csv]
-    
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        user = request.user
-        if user.is_superuser: return qs
-        if hasattr(user, 'profile'):
-            prof = user.profile
-            if prof.job_series == 'M' or prof.job_level in ['M_MANAGER','M_DIRECTOR','M_VDIRECTOR','M_SENIOR_MANAGER','P_MANAGER','P_SENIOR_MANAGER','P_DIRECTOR','P_VDIRECTOR','P_SENIOR_DIRECTOR']:
-                return qs
-        return qs.filter(customer__owner=user)
 
 @admin.register(Competition)
 class CompetitionAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'status', 'start_date', 'location', 'organizer')
-    list_filter = ('status',)
-    search_fields = ('name', 'location', 'organizer')
-    actions = [export_as_csv]
-    
-    fieldsets = (
-        ('基础信息', {'fields': ('name', 'status', 'start_date', 'end_date', 'location')}),
-        ('组织信息', {'fields': ('organizer', 'website', 'description')}),
-        ('赛事规模', {'fields': ('challenge_count',)}),
-    )
-    
-    def get_urls(self):
-        from django.urls import path
-        urls = super().get_urls()
-        custom_urls = [
-            path('import-excel/', self.admin_site.admin_view(self.import_excel_view), name='competition-import-excel'),
-            path('kanban/', self.admin_site.admin_view(self.kanban_view), name='competition-kanban'),
-        ]
-        return custom_urls + urls
-
-    def kanban_view(self, request):
-        from django.shortcuts import render
-        stages = ApprovalStatus.choices
-        kanban_data = {}
-        for stage_code, stage_label in stages:
-            kanban_data[stage_label] = Competition.objects.filter(status=stage_code).order_by('-created_at')
-        return render(request, 'admin/core/competition/kanban.html', {'kanban_data': kanban_data, 'title': '赛事看板'})
-
-    def import_excel_view(self, request):
-        from django.shortcuts import render, redirect
-        from django.contrib import messages
-        if request.method == 'POST':
-            messages.info(request, "Excel导入功能暂未恢复")
-            return redirect('..')
-        return render(request, 'admin/core/competition/import_excel.html')
+    list_display = ('name', 'time', 'location', 'type', 'owner_name')
+    list_filter = ('type', 'start_date')
+    search_fields = ('name', 'location')
 
 @admin.register(MarketActivity)
 class MarketActivityAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'date', 'location', 'owner')
-    list_filter = ('date',)
+    list_display = ('name', 'time', 'location', 'type')
+    list_filter = ('type', 'date')
     search_fields = ('name', 'location')
-    actions = [export_as_csv]
-    
-    def get_urls(self):
-        from django.urls import path
-        urls = super().get_urls()
-        custom_urls = [path('kanban/', self.admin_site.admin_view(self.kanban_view), name='marketactivity-kanban')]
-        return custom_urls + urls
-
-    def kanban_view(self, request):
-        from django.shortcuts import render
-        stages = ApprovalStatus.choices
-        kanban_data = {}
-        for stage_code, stage_label in stages:
-            kanban_data[stage_label] = MarketActivity.objects.filter(status=stage_code).order_by('-created_at')
-        return render(request, 'admin/core/marketactivity/kanban.html', {'kanban_data': kanban_data, 'title': '市场活动看板'})
-
-@admin.register(Announcement)
-class AnnouncementAdmin(admin.ModelAdmin):
-    list_display = ('title', 'type', 'creator', 'status', 'published_at')
-    list_filter = ('type', 'status')
-    search_fields = ('title', 'content')
-    actions = [approve_announcement]
 
 @admin.register(TodoTask)
 class TodoTaskAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    list_display = ('title', 'user', 'deadline', 'is_completed', 'source_type')
-    list_filter = ('is_completed', 'source_type', 'user')
-    search_fields = ('title', 'description')
+    list_display = ('title', 'priority', 'is_completed', 'deadline', 'user')
+    list_filter = ('priority', 'is_completed')
+    search_fields = ('title',)
 
-@admin.register(WorkReport)
-class WorkReportAdmin(AIEnabledAdminMixin, admin.ModelAdmin):
-    list_display = ('user', 'created_at')
-    list_filter = ('user',)
-    search_fields = ('content',)
-
-@admin.register(SocialMediaStats)
-class SocialMediaStatsAdmin(admin.ModelAdmin):
-    list_display = ('account', 'fans_count', 'date')
-    list_filter = ('account', 'date')
+@admin.register(PerformanceTarget)
+class PerformanceTargetAdmin(admin.ModelAdmin):
+    list_display = ('user', 'target_type', 'target_contract_amount', 'year', 'period')
+    list_filter = ('target_type', 'year')
+    search_fields = ('user__username',)
 
 @admin.register(SocialMediaAccount)
 class SocialMediaAccountAdmin(admin.ModelAdmin):
-    list_display = ('platform', 'account_name', 'manager', 'created_at')
+    list_display = ('platform', 'account_name', 'manager', 'fans_count_display')
     list_filter = ('platform',)
-    search_fields = ('platform', 'account_name')
-    # autocomplete_fields = ['creator','admins']
-    readonly_fields = ('created_at',)
-
-@admin.register(SubmissionLog)
-class SubmissionLogAdmin(admin.ModelAdmin):
-    list_display = ('id','status','user','intent','entity','created_at', 'error_message_short')
-    list_filter = ('status','entity','intent','user')
-    search_fields = ('text_input', 'error_message', 'raw_response')
-    readonly_fields = ('created_at', 'prompt', 'raw_response', 'error_message', 'result_payload')
-    actions = [export_as_csv]
+    search_fields = ('account_name',)
     
-    def error_message_short(self, obj):
-        return (obj.error_message[:50] + '...') if obj.error_message else '-'
-    error_message_short.short_description = 'Error'
+    def fans_count_display(self, obj):
+        latest = obj.stats.order_by('-date').first()
+        return latest.fans_count if latest else '-'
+    fans_count_display.short_description = '最新粉丝数'
 
-# --- Transfer Application Admin ---
-from .models_transfer import OpportunityTransferApplication
+@admin.register(SocialMediaStats)
+class SocialMediaStatsAdmin(admin.ModelAdmin):
+    list_display = ('account', 'date', 'fans_count', 'read_count', 'interaction_count')
+    list_filter = ('date', 'account__platform')
 
-@admin.action(description='批准转移申请')
-def approve_transfer(modeladmin, request, queryset):
-    for application in queryset.filter(status=ApprovalStatus.PENDING):
-        # 1. Update Opportunity Owner
-        opp = application.opportunity
-        old_owner = opp.sales_manager
-        opp.sales_manager = application.target_owner
-        opp.save()
-        
-        # 2. Log it
-        OpportunityLog.objects.create(
-            opportunity=opp,
-            operator=request.user,
-            action='TRANSFER',
-            content=f"商机负责人变更: {old_owner} -> {application.target_owner} (原因: {application.reason})",
-            stage_snapshot=opp.stage
-        )
-        
-        # 3. Update Application Status
-        application.status = ApprovalStatus.APPROVED
-        application.approver = request.user
-        application.approval_note = "管理员批量批准"
-        application.save()
-        
-    modeladmin.message_user(request, f"已批准 {queryset.count()} 个转移申请")
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'phone', 'department', 'job_title')
+    search_fields = ('user__username', 'phone')
 
-@admin.register(OpportunityTransferApplication)
-class OpportunityTransferApplicationAdmin(admin.ModelAdmin):
-    list_display = ('opportunity', 'applicant', 'current_owner', 'target_owner', 'status', 'created_at')
-    list_filter = ('status', 'created_at')
-    search_fields = ('opportunity__name', 'applicant__username')
-    actions = [approve_transfer]
+@admin.register(DepartmentModel)
+class DepartmentModelAdmin(admin.ModelAdmin):
+    list_display = ('name', 'manager', 'parent')
+
+@admin.register(ApprovalRequest)
+class ApprovalRequestAdmin(admin.ModelAdmin):
+    list_display = ('request_type', 'applicant', 'status', 'created_at')
+    list_filter = ('status', 'request_type')
+    actions = ['approve_requests', 'reject_requests']
     
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        return qs.filter(models.Q(applicant=request.user) | models.Q(target_owner=request.user) | models.Q(current_owner=request.user))
-
-# 隐藏商机移交申请的直接入口，将其作为内联操作或通过Action触发
-admin.site.unregister(OpportunityTransferApplication)
-
-@admin.register(OpportunityTransferApplication)
-class OpportunityTransferApplicationHiddenAdmin(admin.ModelAdmin):
-    # This admin class is registered but hidden from index via has_module_permission
-    # It handles the actual logic when accessed directly or via inlines
-    list_display = ('opportunity', 'applicant', 'current_owner', 'target_owner', 'status', 'created_at')
-    # Remove 'status' from list_filter to simplify, keep 'created_at'
-    list_filter = ('created_at',) 
-    search_fields = ('opportunity__name', 'applicant__username')
-    # Remove approve_transfer action from here as user said "审批信息应该在待办事项里"
-    # But we still need a way to approve. We will keep it but hide status field from form.
-    actions = [approve_transfer]
-    
-    exclude = ('status', 'approver', 'approval_note') # Hide approval fields from creation form
-
-    def has_module_permission(self, request):
-        return False
-
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        return qs.filter(models.Q(applicant=request.user) | models.Q(target_owner=request.user) | models.Q(current_owner=request.user))
+    @admin.action(description='批量通过')
+    def approve_requests(self, request, queryset):
+        queryset.update(status=ApprovalStatus.APPROVED)
         
-    def save_model(self, request, obj, form, change):
-        if not change: # Creating new application
-            obj.applicant = request.user
-            obj.current_owner = obj.opportunity.sales_manager
-            obj.status = ApprovalStatus.PENDING
-            
-            # Create a TodoTask for the Approver (Department Manager or Admin)
-            # Logic: Find manager. For now, assign to Superuser/Admin or specific manager logic
-            # Simplified: Assign to current_owner's reports_to, else admin
-            
-            manager = None
-            if hasattr(obj.current_owner, 'profile') and obj.current_owner.profile.reports_to:
-                manager = obj.current_owner.profile.reports_to.user
-            
-            if not manager:
-                # Fallback to first superuser
-                manager = User.objects.filter(is_superuser=True).first()
-            
-            if manager:
-                TodoTask.objects.create(
-                    title=f"商机移交审批: {obj.opportunity.name}",
-                    description=f"申请人: {obj.applicant.username}\n移交原因: {obj.reason}\n目标负责人: {obj.target_owner.username}",
-                    source_type=TodoTask.SourceType.SYSTEM, # Corrected
-                    user=manager,
-                    content_object=obj
-                )
-                
-        super().save_model(request, obj, form, change)
+    @admin.action(description='批量驳回')
+    def reject_requests(self, request, queryset):
+        queryset.update(status=ApprovalStatus.REJECTED)
 
-# --- Tag & External ID & Cohort Admins ---
-@admin.register(CustomerTag)
-class CustomerTagAdmin(admin.ModelAdmin):
-    list_display = ('name', 'color', 'created_at')
-    search_fields = ('name',)
-    list_filter = ('created_at',)
-    actions = [export_as_csv]
+@admin.register(Announcement)
+class AnnouncementAdmin(admin.ModelAdmin):
+    list_display = ('title', 'status', 'priority', 'created_at')
+    list_filter = ('status', 'priority')
+    actions = [approve_announcement]
 
-@admin.register(ExternalIdMap)
-class ExternalIdMapAdmin(admin.ModelAdmin):
-    list_display = ('entity_type', 'object_id', 'system_name', 'external_id', 'created_at')
-    list_filter = ('entity_type', 'system_name', 'created_at')
-    search_fields = ('external_id', 'system_name')
-    actions = [export_as_csv]
-
-@admin.register(CustomerCohort)
-class CustomerCohortAdmin(admin.ModelAdmin):
-    list_display = ('name', 'creator', 'created_at')
-    search_fields = ('name', 'creator__username')
-    list_filter = ('created_at',)
-    readonly_fields = ('creator',)
-    actions = [export_as_csv]
-    def save_model(self, request, obj, form, change):
-        if not change and not obj.creator:
-            obj.creator = request.user
-        super().save_model(request, obj, form, change)
+# Register other models simply
+admin.site.register(Contact)
+admin.site.register(OpportunityLog)
+admin.site.register(OpportunityTeamMember)
+admin.site.register(CustomerTag)
+admin.site.register(ExternalIdMap)
+admin.site.register(CustomerCohort)
+admin.site.register(SubmissionLog)
+admin.site.register(Project)
+admin.site.register(ProjectCard)
+admin.site.register(ProjectChangeLog)
+admin.site.register(DailyReport)

@@ -3,6 +3,16 @@
 > **项目**: 智能商机跟进及业绩统计系统
 > **维护者**: Trae AI Assistant
 
+## v1.2.3 (2026-01-09)
+
+### 🐞 修复与优化 (Fixes & Optimization)
+- **AI 中枢修复**:
+    - 修复连接测试报 "Method GET not allowed" 错误 (接口方法修正为 POST)。
+    - 修复智能分析报 "Task description is required" 错误 (Payload 键名从 `text` 修正为 `task`)。
+- **UI 现代化升级 (v2.0)**:
+    - 重构 `ChatWindow` 界面，引入渐变 Header、毛玻璃效果及微交互动画。
+    - 优化了输入框聚焦体验与卡片悬浮效果。
+
 ## v1.2.2 (2026-01-09)
 
 ### 🐞 严重 Bug 修复 (Critical Fixes)

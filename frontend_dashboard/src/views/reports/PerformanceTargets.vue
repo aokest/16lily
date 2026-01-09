@@ -779,7 +779,8 @@ const handleSplit = async (row: any) => {
                 full_name: m.full_name,
                 year_contract: target ? parseFloat(target.target_contract_amount) : 0,
                 year_profit: target ? parseFloat(target.target_gross_profit) : 0,
-                year_revenue: target ? parseFloat(target.target_revenue) : 0
+                year_revenue: target ? parseFloat(target.target_revenue) : 0,
+                has_target: !!target // 标记是否有原有目标
             };
         });
     } catch (e) {
@@ -796,8 +797,14 @@ const submitSplitForm = async () => {
         const deptId = currentSplitTarget.value.department_id || currentSplitTarget.value.department;
         if (!deptId) throw new Error('部门信息缺失');
 
+        // 过滤：仅提交有数值或原有目标的成员，避免为无目标成员生成 0 数据
+        const validMembers = teamMembers.value.filter(m => {
+            const hasValue = (m.year_contract || 0) > 0 || (m.year_profit || 0) > 0 || (m.year_revenue || 0) > 0;
+            return hasValue || m.has_target;
+        });
+
         // 为每个成员提交批量更新
-        const promises = teamMembers.value.map(m => {
+        const promises = validMembers.map(m => {
             const monthlyContract = (m.year_contract || 0) / 12;
             const monthlyProfit = (m.year_profit || 0) / 12;
             const monthlyRevenue = (m.year_revenue || 0) / 12;

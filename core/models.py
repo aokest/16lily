@@ -515,10 +515,21 @@ class Competition(models.Model):
     
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.UPCOMING, verbose_name='状态')
     
+    type = models.CharField(max_length=20, default='OTHER', verbose_name='赛事类型')
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='负责人')
+
     # New Field
     challenge_count = models.IntegerField(default=0, verbose_name='赛题数量')
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def time(self):
+        return self.start_date
+
+    @property
+    def owner_name(self):
+        return self.owner.username if self.owner else ''
 
     def __str__(self):
         return self.name
@@ -541,10 +552,15 @@ class MarketActivity(models.Model):
     
     leads_count = models.IntegerField(default=0, verbose_name='获客数量')
     
+    type = models.CharField(max_length=20, default='OTHER', verbose_name='活动类型')
     owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='负责人')
     description = models.TextField(blank=True, verbose_name='活动详情')
     
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def time(self):
+        return self.date
 
     def __str__(self):
         return self.name
@@ -578,6 +594,7 @@ class Announcement(models.Model):
     creator = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_announcements', verbose_name='发布人')
     
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT, verbose_name='状态')
+    priority = models.CharField(max_length=10, default='MEDIUM', verbose_name='优先级')
     
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     published_at = models.DateTimeField(null=True, blank=True, verbose_name='发布时间')
@@ -1089,3 +1106,22 @@ class ContactDeleteLog(models.Model):
 
     def __str__(self):
         return f"删除: {self.contact_name} ({self.customer_name})"
+
+class SystemRelease(models.Model):
+    version = models.CharField(max_length=50, verbose_name='版本号')
+    title = models.CharField(max_length=200, verbose_name='版本标题')
+    content = models.TextField(verbose_name='更新内容')
+    release_date = models.DateField(default=timezone.now, verbose_name='发布日期')
+    is_current = models.BooleanField(default=False, verbose_name='是否当前版本')
+    status = models.CharField(max_length=20, default='RELEASED', verbose_name='状态')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = '系统版本'
+        verbose_name_plural = '系统版本'
+        ordering = ['-release_date']
+
+    def __str__(self):
+        return f"{self.version} - {self.title}"

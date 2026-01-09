@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.db.models import Q
 from .models import UserProfile, Opportunity, OpportunityLog, PerformanceTarget, Competition, MarketActivity, Customer, Contact, ActivityLog, CustomerTag, OpportunityTeamMember, ExternalIdMap, CustomerCohort, DepartmentModel, JobTitle
 from .models import ApprovalRequest, SocialMediaStats, SocialMediaAccount, DailyReport
 
@@ -431,9 +432,62 @@ class OpportunitySerializer(serializers.ModelSerializer):
         }
     
     def to_internal_value(self, data):
-        # 将 customer_name 兼容为 customer_company
+        # 0. 确保 data 是可变的
+        if hasattr(data, 'copy'):
+            data = data.copy()
+        
+        print(f"DEBUG: OpportunitySerializer.to_internal_value input: {data}")
+
+        # 1. 处理 sales_manager: 如果是名字字符串，尝试查找用户 ID
+        if 'sales_manager' in data:
+            val = data['sales_manager']
+            # 如果是 None，移除该字段（让其变成 missing），结合 required=False，即可通过校验
+            if val is None:
+                data.pop('sales_manager')
+            elif isinstance(val, str) and not val.isdigit() and val.strip():
+                # 尝试根据名字查找用户
+                user = User.objects.filter(
+                    Q(first_name__icontains=val) | 
+                    Q(last_name__icontains=val) | 
+                    Q(username__icontains=val)
+                ).first()
+                if user:
+                    print(f"DEBUG: Found user {user.username} for sales_manager {val}")
+                    data['sales_manager'] = user.id
+                else:
+                    # 如果找不到，移除该字段，避免校验错误
+                    print(f"DEBUG: User not found for sales_manager {val}, popping field")
+                    data.pop('sales_manager')
+            elif val == '':
+                 # 空字符串也移除
+                 data.pop('sales_manager')
+
+        # 2. 处理 customer: 如果是名字字符串，尝试查找客户 ID
+        if 'customer' in data:
+            val = data['customer']
+            # 同样处理 None
+            if val is None:
+                data.pop('customer')
+            elif isinstance(val, str) and not val.isdigit() and val.strip():
+                # 尝试查找客户
+                cust = Customer.objects.filter(name__icontains=val).first()
+                if cust:
+                    print(f"DEBUG: Found customer {cust.name} for customer {val}")
+                    data['customer'] = cust.id
+                else:
+                    # 如果找不到，赋值给 customer_company 字段，并移除 customer 字段
+                    print(f"DEBUG: Customer not found for {val}, using customer_company")
+                    data['customer_company'] = val
+                    data.pop('customer')
+            elif val == '':
+                 data.pop('customer')
+
+        # 3. 兼容 customer_name -> customer_company
         if 'customer_name' in data and 'customer_company' not in data:
             data['customer_company'] = data.get('customer_name')
+        
+        print(f"DEBUG: OpportunitySerializer.to_internal_value processed: {data}")
+             
         return super().to_internal_value(data)
     
     def create(self, validated_data):
@@ -512,6 +566,7 @@ class MarketActivitySerializer(serializers.ModelSerializer):
 
 class ContactSerializer(serializers.ModelSerializer):
     customer_name = serializers.SerializerMethodField()
+    customer_code = serializers.SerializerMethodField()
     class Meta:
         model = Contact
         fields = '__all__'
@@ -519,6 +574,11 @@ class ContactSerializer(serializers.ModelSerializer):
     def get_customer_name(self, obj):
         try:
             return obj.customer.name if obj.customer else ''
+        except Exception:
+            return ''
+    def get_customer_code(self, obj):
+        try:
+            return obj.customer.customer_code if obj.customer else ''
         except Exception:
             return ''
 
@@ -646,6 +706,13 @@ class DailyReportSerializer(serializers.ModelSerializer):
 
     def get_mentions_detail(self, obj):
         return [{'id': u.id, 'name': f"{u.last_name}{u.first_name}".strip() or u.username} for u in obj.mentions.all()]
+
+from .models import SystemRelease
+
+class SystemReleaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SystemRelease
+        fields = '__all__'
 
 from .models import Notification, Announcement
 

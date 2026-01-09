@@ -4,7 +4,7 @@ from .views import (
     OpportunityViewSet, PerformanceTargetViewSet, DashboardViewSet, 
     WeChatLoginView, MeView, competition_kanban_page, marketactivity_kanban_page, 
     CompetitionViewSet, MarketActivityViewSet, AIAnalysisView, CustomerViewSet, ApprovalRequestViewSet, SocialMediaStatsViewSet, SocialMediaAccountViewSet, ContactViewSet, CustomerTagViewSet, OpportunityTeamMemberViewSet, OpportunityLogViewSet, ExternalIdMapViewSet, CustomerCohortViewSet, ChatView, PerformanceReportView, AgentRouterView, SubmissionLogViewSet, AIConfigurationViewSet, UserViewSet, ActivityLogViewSet, ContactDeleteLogViewSet,
-    ProjectViewSet, ProjectCardViewSet, DailyReportViewSet, NotificationViewSet, AnnouncementViewSet, DepartmentViewSet, JobTitleViewSet, DataManagementViewSet
+    ProjectViewSet, ProjectCardViewSet, DailyReportViewSet, NotificationViewSet, AnnouncementViewSet, DepartmentViewSet, JobTitleViewSet, DataManagementViewSet, SystemReleaseViewSet
 )
 from django.views.generic import TemplateView
 
@@ -37,6 +37,7 @@ router.register(r'admin/ai-configs', AIConfigurationViewSet, basename='admin-ai-
 router.register(r'admin/users', UserViewSet, basename='admin-users')
 router.register(r'projects', ProjectViewSet, basename='projects')
 router.register(r'project-cards', ProjectCardViewSet, basename='project-cards')
+router.register(r'system-releases', SystemReleaseViewSet, basename='system-releases')
 
 from rest_framework.authtoken import views as auth_views
 from .views import UserSimpleListView, AIAnalysisView, AgentRouterView, AIConfigsListView, AIConnectionTestView, LegacyImportView, ResetTestDataView, SeedTargetsView

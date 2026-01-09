@@ -322,7 +322,7 @@ class AIService:
             t = text or ''
             import re
             cust = None
-            m = re.search(r'客户名称[:：]\s*([^\s，,]+)', t) or re.search(r'新增(?:一个|一条|一项)?([^\s，,]{2,40})的商机', t) or re.search(r'([^\s，,]{2,40})商机', t)
+            m = re.search(r'客户名称[:：]\s*([^\s，,。;；]+)', t) or re.search(r'新增(?:一个|一条|一项)?([^\s，,。;；]{2,40})的商机', t) or re.search(r'([^\s，,。;；]{2,40})商机', t)
             if m: cust = m.group(1).strip()
             amt = 0
             m_amt = re.search(r'(预算|金额)\s*([0-9]+(?:\.[0-9]+)?)\s*(千|万|百万|亿)?', t)
@@ -612,13 +612,13 @@ class AIService:
             import re, datetime
             t = text or ''
             name = None
-            m_name = re.search(r'赛事名称[:：]\s*([^\s，,]+)', t) or re.search(r'新建(?:一个|一项)?([^\s，,]{2,40})', t)
+            m_name = re.search(r'赛事名称[:：]\s*([^\s，,。;；]+)', t) or re.search(r'新建(?:一个|一项)?([^\s，,。;；]{2,40})', t)
             if m_name: name = m_name.group(1).strip()
             loc = None
-            m_loc = re.search(r'地点[:：]\s*([^\s，,]+)', t) or re.search(r'在([^\s，,]{1,10})', t)
+            m_loc = re.search(r'地点[:：]\s*([^\s，,。;；]+)', t) or re.search(r'在([^\s，,。;；]{1,10})', t)
             if m_loc: loc = m_loc.group(1).strip()
             ty = None
-            m_ty = re.search(r'类型[:：]\s*([^\s，,]+)', t)
+            m_ty = re.search(r'类型[:：]\s*([^\s，,。;；]+)', t)
             if m_ty: ty = m_ty.group(1).strip()
             now = timezone.now()
             year = now.year + (1 if '明年' in t else 0)
@@ -654,13 +654,13 @@ class AIService:
             import re, datetime
             t = text or ''
             name = None
-            m_name = re.search(r'活动名称[:：]\s*([^\s，,]+)', t) or re.search(r'新建(?:一个|一项)?([^\s，,]{2,40})', t)
+            m_name = re.search(r'活动名称[:：]\s*([^\s，,。;；]+)', t) or re.search(r'新建(?:一个|一项)?([^\s，,。;；]{2,40})', t)
             if m_name: name = m_name.group(1).strip()
             loc = None
-            m_loc = re.search(r'地点[:：]\s*([^\s，,]+)', t) or re.search(r'在([^\s，,]{1,10})', t)
+            m_loc = re.search(r'地点[:：]\s*([^\s，,。;；]+)', t) or re.search(r'在([^\s，,。;；]{1,10})', t)
             if m_loc: loc = m_loc.group(1).strip()
             ty = None
-            m_ty = re.search(r'类型[:：]\s*([^\s，,]+)', t)
+            m_ty = re.search(r'类型[:：]\s*([^\s，,。;；]+)', t)
             if m_ty: ty = m_ty.group(1).strip()
             now = timezone.now(); year = now.year + (1 if '明年' in t else 0)
             dt = None
@@ -673,6 +673,120 @@ class AIService:
             return fallback
         return data
 
+    def _call_llm(self, prompt, user_text, history=None, **kwargs):
+        """
+        Legacy/Alias for _call_llm_json for backward compatibility
+        or simple text-based calls.
+        """
+        if not self.config:
+             return "Error: No active AI configuration found."
+             
+        messages = [
+            {"role": "system", "content": prompt},
+        ]
+        
+        # Append history if provided (simple concatenation for context)
+        if history and isinstance(history, list):
+            for h in history:
+                role = h.get('role', 'user')
+                content = h.get('content', '')
+                if content:
+                    messages.append({"role": role, "content": content})
+                    
+        messages.append({"role": "user", "content": user_text})
+        
+        try:
+            if self.config.provider == AIConfiguration.Provider.OLLAMA:
+                import requests
+                base_url = self.config.base_url or 'http://localhost:11434'
+                
+                # Docker fix
+                import os
+                if os.path.exists('/.dockerenv'):
+                     base_url = base_url.replace('localhost', 'host.docker.internal').replace('127.0.1', 'host.docker.internal').replace('127.0.0.1', 'host.docker.internal')
+                
+                use_openai_compat = '/v1' in base_url
+                api_url = f"{base_url}/chat/completions" if use_openai_compat else f"{base_url}/api/chat"
+                
+                if use_openai_compat:
+                    payload = {
+                        "model": self.config.model_name,
+                        "messages": messages,
+                        "temperature": 0.3,
+                        "stream": False
+                    }
+                else:
+                    payload = {
+                        "model": self.config.model_name,
+                        "messages": messages,
+                        "options": {"temperature": 0.3},
+                        "stream": False
+                    }
+                
+                resp = requests.post(api_url, json=payload, timeout=60)
+                resp.raise_for_status()
+                data = resp.json()
+                
+                if use_openai_compat:
+                    return data['choices'][0]['message']['content']
+                else:
+                    return (data.get('message') or {}).get('content') or ''
+                    
+            else:
+                # OpenAI Compatible
+                import openai
+                client = openai.OpenAI(api_key=self.config.api_key, base_url=self.config.base_url)
+                completion = client.chat.completions.create(
+                    model=self.config.model_name,
+                    messages=messages,
+                    temperature=0.3
+                )
+                return completion.choices[0].message.content
+        except Exception as e:
+            return f"Error calling LLM: {str(e)}"
+
+    def parse_task(self, text, user=None):
+        """
+        Analyze the user's intent from the text.
+        Returns a JSON object with 'intent' and 'content' (and possibly other metadata).
+        """
+        default_prompt = """
+        Analyze the user's intent.
+        Available Intents:
+        - create_customer: User wants to add/create a new company/customer.
+        - create_opportunity: User wants to add/create a sales opportunity/deal.
+        - create_todo: User wants to create a todo/task.
+        - query_data: User wants to search/query information.
+        - other: Any other intent.
+
+        Output JSON:
+        {
+            "intent": "ONE_OF_ABOVE",
+            "content": "The original or cleaned text relevant to the intent",
+            "confidence": 0.0-1.0
+        }
+        """
+        prompt = self._get_prompt('task_analysis', default_prompt)
+        data = self._call_llm_json(prompt, text, user=user, intent='analyze_task', entity='task')
+        
+        if not data or 'error' in data:
+            # Fallback Logic based on keywords
+            import re
+            t = text or ''
+            intent = 'other'
+            if re.search(r'(?:新建|创建|新增|录入)(?:一个|一条)?(?:客户|公司|企业)', t):
+                intent = 'create_customer'
+            elif re.search(r'(?:新建|创建|新增|录入)(?:一个|一条)?(?:商机|机会|销售机会)', t):
+                intent = 'create_opportunity'
+            elif re.search(r'(?:新建|创建|新增|录入)(?:一个|一条)?(?:待办|任务)', t):
+                intent = 'create_todo'
+            elif re.search(r'(?:查询|查找|搜索|找一下)', t):
+                intent = 'query_data'
+            
+            return {'intent': intent, 'content': t, 'confidence': 0.5, 'source': 'fallback'}
+            
+        return data
+
     def parse_customer(self, text, user=None):
         default_prompt = """
         Extract Customer Company info.
@@ -682,6 +796,10 @@ class AIService:
         - scale: One of [SMALL, MEDIUM, LARGE, ENTERPRISE, GOV].
         - legal_representative: Legal Rep Name.
         - website: URL.
+        - region: Region or City (e.g. "Beijing", "Shenyang").
+        - address: Full address if available.
+        - contact_name: Key contact person name.
+        - contact_title: Key contact person title.
         """
         prompt = self._get_prompt(PromptTemplate.Scene.CUSTOMER, default_prompt)
         data = self._call_llm_json(prompt, text, user=user, intent='create', entity='customer')
@@ -689,14 +807,23 @@ class AIService:
             import re
             t = text or ''
             name = None
-            m_name = re.search(r'客户名称[:：]\s*([^\s，,]+)', t) or re.search(r'新建客户[，,]\s*([^\s，,]{2,40})', t)
+            # 增强的正则匹配：支持 "客户名称: XX" 或 "新建客户 XX" 或 "创建客户 XX" 或 "创建一个客户 XX"
+            m_name = re.search(r'客户名称[:：]\s*([^\s，,。;；]+)', t) or \
+                     re.search(r'(?:新建|创建)(?:一个|一项)?客户[，, ]\s*([^\s，,。;；]{2,40})', t) or \
+                     re.search(r'客户[，, ]\s*([^\s，,。;；]{2,40})', t)
+            
             if m_name: name = m_name.group(1).strip()
+            
             ind = None
-            m_ind = re.search(r'行业[:：]\s*([^\s，,]+)', t)
+            m_ind = re.search(r'行业[:：]\s*([^\s，,。;；]+)', t) or re.search(r'([^\s，,。;；]+)行业', t)
             if m_ind: ind = m_ind.group(1).strip()
+            
             reg = None
-            m_reg = re.search(r'区域[:：]\s*([^\s，,]+)', t) or re.search(r'在([^\s，,]{1,10})', t)
+            m_reg = re.search(r'(?:区域|地点)[:：]\s*([^\s，,。;；]+)', t) or \
+                    re.search(r'在([^\s，,。;；]{1,10})', t) or \
+                    re.search(r'地点\s*([^\s，,。;；]{1,10})', t)
             if m_reg: reg = m_reg.group(1).strip()
+            
             fallback = {'name': name, 'industry': ind, 'region': reg, 'status': 'POTENTIAL'}
             if data and 'error' in data: fallback['error'] = data['error']
             return fallback

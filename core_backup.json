@@ -1,0 +1,1 @@
+[{"model": "core.aiconfiguration", "pk": 1, "fields": {"name": "deepseek", "provider": "DEEPSEEK", "user": null, "api_key": "sk-77ab114ac8874c00a2364edb7ca9fb7a", "base_url": "https://api.deepseek.com", "model_name": "deepseek-chat", "is_active": true, "supports_vision": false, "created_at": "2026-01-06T17:25:36.327Z", "updated_at": "2026-01-08T15:12:21.559Z"}}

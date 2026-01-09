@@ -1,59 +1,289 @@
 <template>
-  <div class="h-screen flex flex-col bg-slate-50 overflow-hidden">
-    <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center shrink-0 z-10">
+  <div class="h-screen flex flex-col bg-slate-50 overflow-hidden font-sans">
+    <!-- Modern Gradient Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg px-8 py-5 flex justify-between items-center shrink-0 z-20">
       <div class="flex items-center gap-4">
-        <h1 class="text-xl font-bold text-slate-800">AI对话窗</h1>
-        <el-breadcrumb separator="/">
-          <el-breadcrumb-item :to="{ path: '/' }">大屏首页</el-breadcrumb-item>
-          <el-breadcrumb-item :to="{ path: '/crm' }">CRM首页</el-breadcrumb-item>
-          <el-breadcrumb-item>AI对话窗</el-breadcrumb-item>
-        </el-breadcrumb>
+        <div class="p-2 bg-white/10 rounded-lg backdrop-blur-sm">
+           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+           </svg>
+        </div>
+        <div>
+            <h1 class="text-xl font-bold text-white tracking-wide">AI 智能中枢</h1>
+            <p class="text-xs text-blue-100 opacity-90">全能业务助手 & 决策大脑</p>
+        </div>
       </div>
+       <el-breadcrumb separator="/" class="!text-blue-100">
+          <el-breadcrumb-item :to="{ path: '/' }" class="!text-blue-200 hover:!text-white transition-colors">大屏首页</el-breadcrumb-item>
+          <el-breadcrumb-item :to="{ path: '/crm' }" class="!text-blue-200 hover:!text-white transition-colors">CRM首页</el-breadcrumb-item>
+          <el-breadcrumb-item class="!text-white font-medium">AI对话窗</el-breadcrumb-item>
+        </el-breadcrumb>
     </header>
-    <main class="flex-1 p-6 overflow-auto">
-      <el-tabs v-model="tab">
-        <el-tab-pane label="智能体" name="agent">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <el-card class="md:col-span-1">
-              <template #header>输入需求</template>
-              <div class="space-y-3">
-                <el-input v-model="agentText" type="textarea" :rows="6" placeholder="例如：通过审批 123，或 新建客户，客户名称：示例公司，行业：教育，区域：北京" />
-                <div class="flex flex-col gap-2">
-                  <div class="flex gap-2">
-                    <el-select v-model="agentConfigId" placeholder="选择AI模型(可选)" class="flex-1">
-                      <el-option v-for="c in aiConfigs" :key="c.id" :label="cLabel(c)" :value="String(c.id)" />
-                    </el-select>
-                    <el-button @click="testAI" type="primary" plain>测试连接</el-button>
+    
+    <main class="flex-1 p-6 overflow-auto bg-slate-50/50">
+      <div class="max-w-7xl mx-auto h-full">
+      <el-tabs v-model="tab" class="custom-tabs h-full flex flex-col">
+        <el-tab-pane label="智能体协作" name="agent" class="h-full">
+          <!-- 2-Column Layout -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+            
+            <!-- Column 1: Input & Analysis (35%) -->
+            <div class="lg:col-span-4 flex flex-col gap-6 h-full overflow-hidden">
+                <el-card class="border-0 shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl bg-white flex flex-col h-full">
+                  <template #header>
+                    <div class="flex items-center gap-2 border-l-4 border-blue-500 pl-3">
+                       <span class="font-bold text-lg text-slate-800">指令与分析</span>
+                       <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">自然语言</span>
+                    </div>
+                  </template>
+                  <div class="flex-1 flex flex-col gap-4 overflow-y-auto p-1">
+                    <!-- Input Area -->
+                    <div class="relative">
+                        <el-input 
+                            v-model="agentText" 
+                            type="textarea" 
+                            :rows="6" 
+                            placeholder="试试这样说：&#10;“帮我创建一个新的销售商机，客户是腾讯科技，预计金额500万”&#10;或&#10;“审批通过所有待办任务”" 
+                            class="custom-textarea transition-all duration-300 focus-within:ring-2 ring-blue-100 rounded-lg"
+                            resize="none"
+                            @keydown.meta.enter="analyzeAgent"
+                            @keydown.ctrl.enter="analyzeAgent"
+                        />
+                        <div class="absolute bottom-3 right-3 text-xs text-slate-400 pointer-events-none">按 Cmd/Ctrl + Enter 发送</div>
+                    </div>
+
+                    <!-- AI Intent Analysis Result (Moved from Right) -->
+                    <div class="bg-blue-50/50 rounded-xl p-4 border border-blue-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            <span class="text-sm font-bold text-slate-700">AI 意图识别</span>
+                            <el-tag v-if="chosen.intent" type="success" effect="dark" round size="small" class="!px-2 scale-90">已就绪</el-tag>
+                            <el-tag v-else type="info" effect="plain" round size="small" class="!px-2 scale-90">等待中</el-tag>
+                        </div>
+                        
+                        <div class="text-sm text-slate-600 font-medium pl-6">
+                            {{ humanLabel(chosen) || '等待指令输入...' }}
+                        </div>
+
+                        <!-- Alternatives -->
+                        <div v-if="agentAlternatives.length > 0" class="mt-3 pl-6">
+                            <div class="text-xs text-slate-400 mb-1">其他推测:</div>
+                            <div class="flex flex-wrap gap-2">
+                                <div 
+                                    v-for="(alt,i) in agentAlternatives" 
+                                    :key="i" 
+                                    class="cursor-pointer px-2 py-0.5 rounded-full border text-xs transition-colors"
+                                    :class="chosen === alt ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'"
+                                    @click="chooseAlternative(alt)"
+                                >
+                                    {{ humanLabel(alt) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Model Config & Templates -->
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3 mt-auto">
+                      <div class="flex items-center justify-between">
+                         <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">模型配置</span>
+                         <el-tag size="small" type="info" effect="plain" class="!rounded-full">自动检测</el-tag>
+                      </div>
+                      <div class="flex flex-col gap-1">
+                        <div class="flex gap-2">
+                            <el-select 
+                                v-model="agentConfigId" 
+                                placeholder="请选择AI模型" 
+                                class="flex-1 !w-full"
+                                no-data-text="暂无可用模型，请联系管理员配置"
+                                empty-text="暂无可用模型，请联系管理员配置"
+                            >
+                            <el-option v-for="c in aiConfigs" :key="c.id" :label="cLabel(c)" :value="String(c.id)" />
+                            </el-select>
+                            <el-tooltip content="测试模型连通性" placement="top">
+                                <el-button @click="testAI" circle plain type="primary" class="!px-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                </el-button>
+                            </el-tooltip>
+                        </div>
+                        <div class="text-[10px] text-slate-400 px-1 flex justify-between">
+                            <span>当前可用模型: {{ aiConfigs.length }}</span>
+                            <router-link to="/ai/configs" class="text-blue-400 hover:text-blue-600">管理模型</router-link>
+                        </div>
+                      </div>
+                      
+                       <div class="grid grid-cols-3 gap-2">
+                        <button @click="fillTemplate('approve')" class="text-xs py-1.5 px-2 bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:text-blue-600 transition-colors text-slate-600 shadow-sm">审批模板</button>
+                        <button @click="fillTemplate('customer')" class="text-xs py-1.5 px-2 bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:text-blue-600 transition-colors text-slate-600 shadow-sm">客户模板</button>
+                        <button @click="fillTemplate('opportunity')" class="text-xs py-1.5 px-2 bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:text-blue-600 transition-colors text-slate-600 shadow-sm">商机模板</button>
+                      </div>
+                    </div>
+    
+                    <el-button type="primary" @click="analyzeAgent" :loading="loading" class="w-full !h-12 !text-base !rounded-xl !shadow-lg !shadow-blue-200 hover:!shadow-blue-300 transition-all transform hover:-translate-y-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 border-none">
+                        <span class="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                            开始智能分析
+                        </span>
+                    </el-button>
                   </div>
-                  <div class="flex flex-wrap gap-2">
-                    <el-button size="small" @click="fillTemplate('approve')">审批模板</el-button>
-                    <el-button size="small" @click="fillTemplate('customer')">客户模板</el-button>
-                    <el-button size="small" @click="fillTemplate('opportunity')">商机模板</el-button>
-                  </div>
-                </div>
-                <el-button type="primary" @click="analyzeAgent" :loading="loading" class="w-full">智能分析</el-button>
-              </div>
-            </el-card>
-            <el-card class="md:col-span-2">
-              <template #header>建议动作</template>
-              <div class="space-y-3">
-                <div class="text-sm text-slate-500">智能体推荐（点击下方卡片选择）。解析后已自动填入下方表单，请在下方确认或修改后提交：</div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <el-card v-for="(alt,i) in agentAlternatives" :key="i" class="cursor-pointer hover:shadow" @click="chooseAlternative(alt)">
-                    <div class="font-bold">{{ humanLabel(alt) }}</div>
-                    <div class="text-xs text-slate-500 mt-1">{{ humanDesc(alt) }}</div>
-                  </el-card>
-                </div>
-                <div class="text-sm">当前选择：{{ humanLabel(chosen) }}</div>
-                <div class="flex items-center gap-3">
-                  <el-button type="success" @click="executeChosen" :disabled="needsForm(chosen)" :loading="loading">执行</el-button>
-                  <el-button text @click="showRaw = !showRaw">{{ showRaw ? '隐藏请求详情' : '查看请求详情' }}</el-button>
-                </div>
-                <div v-if="showRaw" class="mt-4">
-                  <pre class="text-xs whitespace-pre-wrap">{{ JSON.stringify(agentResult, null, 2) }}</pre>
-                </div>
-              </div>
-            </el-card>
+                </el-card>
+            </div>
+
+            <!-- Column 2: Execution (65%) - Pure Execution Panel -->
+            <div class="lg:col-span-8 h-full overflow-hidden flex flex-col">
+                <el-card class="flex-1 flex flex-col border-0 shadow-lg ring-1 ring-blue-100 rounded-2xl bg-white overflow-hidden" :body-style="{ padding: '0', display: 'flex', flexDirection: 'column', height: '100%' }">
+                    <!-- Minimal Header -->
+                    <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+                        <div class="flex items-center gap-2">
+                            <div class="p-1.5 bg-green-100 text-green-600 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                            </div>
+                            <h2 class="font-bold text-slate-800 text-base">智能执行面板</h2>
+                        </div>
+                        <el-button text size="small" @click="showRaw = !showRaw" class="!text-slate-400 hover:!text-blue-500">
+                            {{ showRaw ? '隐藏数据' : '查看数据' }}
+                        </el-button>
+                    </div>
+
+                    <!-- Debug Data Overlay -->
+                    <div v-if="showRaw" class="bg-slate-900 p-3 overflow-auto max-h-32 text-xs border-b border-slate-800">
+                        <pre class="text-green-400 font-mono whitespace-pre-wrap">{{ JSON.stringify(agentResult, null, 2) }}</pre>
+                    </div>
+
+                    <!-- Main Execution Body -->
+                    <div class="flex-1 overflow-y-auto p-6 relative bg-white">
+                         <!-- Empty State -->
+                         <div v-if="!chosen.intent" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 select-none">
+                             <div class="w-32 h-32 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                             </div>
+                             <p class="text-lg font-medium text-slate-400">请在左侧输入业务指令</p>
+                             <p class="text-sm text-slate-400 mt-2">例如：“创建腾讯科技商机” 或 “审批所有请求”</p>
+                         </div>
+                         
+                         <!-- Active Form -->
+                         <div v-else class="max-w-4xl mx-auto space-y-6">
+                            <div v-if="warnings.length" class="space-y-2">
+                              <el-alert v-for="(w, i) in warnings" :key="i" :title="w" type="warning" show-icon :closable="false" />
+                            </div>
+                            
+                            <!-- Dynamic Forms -->
+                            <div v-if="chosen.entity==='customer' && chosen.intent==='create'" class="space-y-4">
+                              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">客户名称</div><el-input v-model="execFields.name" placeholder="客户名称" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">行业</div><el-input v-model="execFields.industry" placeholder="行业" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">区域</div><el-input v-model="execFields.region" placeholder="区域" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">客户状态</div>
+                                  <el-select v-model="execFields.status" placeholder="客户状态" class="w-full" size="large">
+                                    <el-option label="潜在客户" value="POTENTIAL" />
+                                    <el-option label="合作中" value="ACTIVE" />
+                                    <el-option label="重点客户" value="KEY" />
+                                    <el-option label="流失客户" value="CHURNED" />
+                                  </el-select></div>
+                              </div>
+                            </div>
+                            <div v-else-if="chosen.entity==='approvals' && (chosen.intent==='approve' || chosen.intent==='reject')" class="space-y-4">
+                               <div><div class="text-sm font-medium text-slate-700 mb-1.5">审批ID</div><el-input v-model="execFields.id" placeholder="审批ID" disabled size="large" /></div>
+                               <div><div class="text-sm font-medium text-slate-700 mb-1.5">审批备注</div><el-input v-model="execFields.reason" placeholder="审批备注" type="textarea" :rows="3" size="large" /></div>
+                            </div>
+                            <div v-else-if="chosen.entity==='activity' && chosen.intent==='create'" class="space-y-4">
+                              <div><div class="text-sm font-medium text-slate-700 mb-1.5">活动名称</div><el-input v-model="execFields.name" placeholder="活动名称" size="large" /></div>
+                              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">活动时间</div><el-date-picker v-model="execFields.time" type="date" placeholder="活动时间" class="!w-full" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">活动地点</div><el-input v-model="execFields.location" placeholder="活动地点" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">活动类型</div><el-input v-model="execFields.type" placeholder="活动类型" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">规模</div><el-input v-model="execFields.scale" placeholder="规模（可选）" size="large" /></div>
+                              </div>
+                            </div>
+                            <div v-else-if="chosen.entity==='competition' && chosen.intent==='create'" class="space-y-4">
+                              <div><div class="text-sm font-medium text-slate-700 mb-1.5">赛事名称</div><el-input v-model="execFields.name" size="large" /></div>
+                              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">开始时间</div><el-date-picker v-model="execFields.time" type="date" class="!w-full" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">结束时间</div><el-date-picker v-model="execFields.end_time" type="date" class="!w-full" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">地点</div><el-input v-model="execFields.location" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">类型</div><el-input v-model="execFields.type" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">队伍数量</div><el-input v-model="execFields.team_count" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">题目数量</div><el-input v-model="execFields.challenge_count" size="large" /></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">赛制</div><el-select v-model="execFields.system_format" class="!w-full" size="large">
+                                    <el-option label="夺旗赛" value="CTF" />
+                                <el-option label="攻防赛" value="AWD" />
+                                <el-option label="攻防演练" value="攻防演练" />
+                                  </el-select></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">主办类型</div><el-select v-model="execFields.host_type" class="!w-full" size="large">
+                                    <el-option label="集团" value="Group" />
+                                    <el-option label="学校" value="School" />
+                                    <el-option label="政府/协会" value="Gov" />
+                                  </el-select></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">级别</div><el-select v-model="execFields.level" class="!w-full" size="large">
+                                    <el-option label="国家级" value="National" />
+                                    <el-option label="省级" value="Province" />
+                                    <el-option label="市级" value="City" />
+                                  </el-select></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">影响力</div><el-select v-model="execFields.impact_level" class="!w-full" size="large">
+                                    <el-option label="国家级" value="国家级" />
+                                    <el-option label="省级" value="省级" />
+                                    <el-option label="市级" value="市级" />
+                                  </el-select></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">面向对象</div><el-select v-model="execFields.target_audience" class="!w-full" size="large">
+                                    <el-option label="高校" value="高校" />
+                                    <el-option label="企业" value="企业" />
+                                    <el-option label="政府" value="政府" />
+                                  </el-select></div>
+                                  <div><div class="text-sm font-medium text-slate-700 mb-1.5">行业</div><el-select v-model="execFields.industry" class="!w-full" size="large">
+                                    <el-option label="能源" value="能源" />
+                                    <el-option label="教育" value="教育" />
+                                    <el-option label="政府" value="政府" />
+                                    <el-option label="其他" value="其他" />
+                                  </el-select></div>
+                              </div>
+                            </div>
+                            <div v-else-if="chosen.entity==='opportunity' && chosen.intent==='create'" class="space-y-4">
+                              <div>
+                                <div class="text-sm font-medium text-slate-700 mb-1.5">商机名称</div>
+                                <el-input v-model="execFields.name" size="large" />
+                              </div>
+                              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div>
+                                    <div class="text-sm font-medium text-slate-700 mb-1.5">客户名称</div>
+                                    <el-input v-model="execFields.customer_name" size="large" />
+                                  </div>
+                                  <div>
+                                    <div class="text-sm font-medium text-slate-700 mb-1.5">预估金额</div>
+                                    <el-input v-model="execFields.amount" size="large" />
+                                  </div>
+                                  <div>
+                                    <div class="text-sm font-medium text-slate-700 mb-1.5">阶段</div>
+                                    <el-select v-model="execFields.stage" class="!w-full" size="large">
+                                      <el-option label="初步接触" value="INITIAL" />
+                                      <el-option label="需求分析" value="QUALIFICATION" />
+                                      <el-option label="方案制定" value="PROPOSAL" />
+                                      <el-option label="商务谈判" value="NEGOTIATION" />
+                                      <el-option label="赢单" value="CLOSED_WON" />
+                                    </el-select>
+                                  </div>
+                                  <div>
+                                      <div class="text-sm font-medium text-slate-700 mb-1.5">预计签约</div>
+                                      <el-date-picker v-model="execFields.expected_sign_date" type="date" class="!w-full" size="large" />
+                                  </div>
+                              </div>
+                            </div>
+        
+                            <!-- Actions -->
+                            <div class="flex flex-col gap-4 pt-6 border-t border-slate-100 mt-6">
+                              <el-input v-model="refineText" placeholder="补充说明（如：行业改为教育，区域北京）" class="w-full" size="large">
+                                  <template #append>
+                                      <el-button @click="refineFields">AI修正</el-button>
+                                  </template>
+                              </el-input>
+                              <div class="flex items-center gap-4">
+                                  <el-button type="success" size="large" @click="executeChosenWithFields" :loading="loading" class="flex-1 !px-6 shadow-md shadow-green-100 !h-12 !text-base !rounded-xl">确认执行</el-button>
+                                  <el-button v-if="chosen.entity==='customer' && chosen.intent==='create'" @click="openOriginalForm" text size="large">打开原表单</el-button>
+                              </div>
+                            </div>
+                         </div>
+                    </div>
+                </el-card>
+            </div>
+
           </div>
         </el-tab-pane>
         <el-tab-pane label="审批助手" name="approvals">
@@ -72,7 +302,7 @@
           </div>
           <el-table :data="approvals" v-loading="loading" @selection-change="onApprovalSelection" style="width:100%">
             <el-table-column type="selection" width="48" />
-            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="id" label="编号" width="80" />
             <el-table-column prop="model_name" label="业务类型" width="120">
               <template #default="{row}">
                 <el-tag effect="plain" size="small">{{ row.model_name || row.model_key }}</el-tag>
@@ -91,7 +321,7 @@
                 <el-tag v-if="row.status==='PENDING'" type="warning">待确认</el-tag>
                 <el-tag v-else-if="row.status==='APPROVED'" type="success">已通过</el-tag>
                 <el-tag v-else-if="row.status==='REJECTED'" type="danger">已驳回</el-tag>
-                <el-tag v-else type="info">{{ row.status }}</el-tag>
+                <el-tag v-else type="info">{{ formatStatus(row.status) }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="reason" label="理由" />
@@ -135,7 +365,9 @@
                 <el-table-column prop="name" label="客户名称" />
                 <el-table-column prop="industry" label="行业" width="140" />
                 <el-table-column prop="region" label="区域" width="120" />
-                <el-table-column prop="status" label="状态" width="120" />
+                <el-table-column prop="status" label="状态" width="120">
+                  <template #default="{row}">{{ formatStatus(row.status) }}</template>
+                </el-table-column>
               </el-table>
             </el-card>
           </div>
@@ -184,7 +416,9 @@
               </div>
               <el-table :data="actList" size="small" v-loading="loading">
                 <el-table-column prop="name" label="活动名称" />
-                <el-table-column prop="status" label="状态" width="120" />
+                <el-table-column prop="status" label="状态" width="120">
+                  <template #default="{row}">{{ formatStatus(row.status) }}</template>
+                </el-table-column>
                 <el-table-column prop="time" label="时间" width="160" />
                 <el-table-column prop="location" label="地点" />
                 <el-table-column prop="type" label="类型" width="120" />
@@ -221,11 +455,15 @@
               </div>
               <el-table :data="compList" size="small" v-loading="loading">
                 <el-table-column prop="name" label="赛事名称" />
-                <el-table-column prop="status" label="状态" width="120" />
+                <el-table-column prop="status" label="状态" width="120">
+                  <template #default="{row}">{{ formatStatus(row.status) }}</template>
+                </el-table-column>
                 <el-table-column prop="time" label="开始时间" width="160" />
                 <el-table-column prop="end_time" label="结束时间" width="160" />
                 <el-table-column prop="location" label="地点" />
-                <el-table-column prop="type" label="类型" width="120" />
+                <el-table-column prop="type" label="类型" width="120">
+                  <template #default="{row}">{{ formatStatus(row.type) }}</template>
+                </el-table-column>
               </el-table>
             </el-card>
           </div>
@@ -266,155 +504,16 @@
           </div>
         </el-tab-pane>
       </el-tabs>
-      <div v-if="chosen.intent && chosen.entity" class="mt-6">
-        <el-card>
-          <template #header>智能执行面板</template>
-          <div class="space-y-4">
-            <div v-if="warnings.length" class="mb-2">
-              <el-alert v-for="(w, i) in warnings" :key="i" :title="w" type="warning" show-icon :closable="false" class="mb-2" />
-            </div>
-            <div class="text-sm text-slate-600">当前选择：{{ humanLabel(chosen) }}</div>
-            <div class="flex items-center gap-3">
-              <el-input v-model="refineText" placeholder="补充说明（如：行业改为教育，区域北京）" style="max-width: 360px" />
-              <el-button @click="refineFields">解析补充</el-button>
-              <el-button type="success" @click="executeChosenWithFields" :loading="loading">确认执行</el-button>
-              <el-button v-if="chosen.entity==='customer' && chosen.intent==='create'" @click="openOriginalForm">打开原表单（预填）</el-button>
-            </div>
-            <!-- 动态表单渲染 -->
-            <div v-if="chosen.entity==='customer' && chosen.intent==='create'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <el-input v-model="execFields.name" placeholder="客户名称" />
-              <el-input v-model="execFields.industry" placeholder="行业" />
-              <el-input v-model="execFields.region" placeholder="区域" />
-              <el-select v-model="execFields.status" placeholder="客户状态">
-                <el-option label="潜在客户" value="POTENTIAL" />
-                <el-option label="合作中" value="ACTIVE" />
-                <el-option label="重点客户" value="KEY" />
-                <el-option label="流失客户" value="CHURNED" />
-              </el-select>
-            </div>
-            <div v-else-if="chosen.entity==='approvals' && (chosen.intent==='approve' || chosen.intent==='reject')" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <el-input v-model="execFields.id" placeholder="审批ID" />
-              <el-input v-model="execFields.reason" placeholder="审批备注" />
-            </div>
-            <div v-else-if="chosen.entity==='activity' && chosen.intent==='create'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <el-input v-model="execFields.name" placeholder="活动名称" />
-              <el-date-picker v-model="execFields.time" type="date" placeholder="活动时间" />
-              <el-input v-model="execFields.location" placeholder="活动地点" />
-              <el-input v-model="execFields.type" placeholder="活动类型" />
-              <el-input v-model="execFields.scale" placeholder="规模（可选）" />
-            </div>
-            <div v-else-if="chosen.entity==='competition' && chosen.intent==='create'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><div class="text-xs text-slate-500 mb-1">赛事名称</div><el-input v-model="execFields.name" /></div>
-              <div><div class="text-xs text-slate-500 mb-1">开始时间</div><el-date-picker v-model="execFields.time" type="date" /></div>
-              <div><div class="text-xs text-slate-500 mb-1">结束时间</div><el-date-picker v-model="execFields.end_time" type="date" /></div>
-              <div><div class="text-xs text-slate-500 mb-1">地点</div><el-input v-model="execFields.location" /></div>
-              <div><div class="text-xs text-slate-500 mb-1">类型</div><el-input v-model="execFields.type" /></div>
-              <div><div class="text-xs text-slate-500 mb-1">队伍数量</div><el-input v-model="execFields.team_count" /></div>
-              <div><div class="text-xs text-slate-500 mb-1">题目数量</div><el-input v-model="execFields.challenge_count" /></div>
-              <div><div class="text-xs text-slate-500 mb-1">赛制</div><el-select v-model="execFields.system_format">
-                <el-option label="CTF" value="CTF" />
-                <el-option label="AWD" value="AWD" />
-                <el-option label="攻防演练" value="攻防演练" />
-              </el-select></div>
-              <div><div class="text-xs text-slate-500 mb-1">主办类型</div><el-select v-model="execFields.host_type">
-                <el-option label="集团" value="Group" />
-                <el-option label="学校" value="School" />
-                <el-option label="政府/协会" value="Gov" />
-              </el-select></div>
-              <div><div class="text-xs text-slate-500 mb-1">级别</div><el-select v-model="execFields.level">
-                <el-option label="国家级" value="National" />
-                <el-option label="省级" value="Province" />
-                <el-option label="市级" value="City" />
-              </el-select></div>
-              <div><div class="text-xs text-slate-500 mb-1">影响力</div><el-select v-model="execFields.impact_level">
-                <el-option label="国家级" value="国家级" />
-                <el-option label="省级" value="省级" />
-                <el-option label="市级" value="市级" />
-              </el-select></div>
-              <div><div class="text-xs text-slate-500 mb-1">面向对象</div><el-select v-model="execFields.target_audience">
-                <el-option label="高校" value="高校" />
-                <el-option label="企业" value="企业" />
-                <el-option label="政府" value="政府" />
-              </el-select></div>
-              <div><div class="text-xs text-slate-500 mb-1">行业</div><el-select v-model="execFields.industry">
-                <el-option label="能源" value="能源" />
-                <el-option label="教育" value="教育" />
-                <el-option label="政府" value="政府" />
-                <el-option label="其他" value="其他" />
-              </el-select></div>
-            </div>
-            <div v-else-if="chosen.entity==='opportunity' && chosen.intent==='create'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div class="text-xs text-slate-500 mb-1">商机名称</div>
-                <el-input v-model="execFields.name" />
-              </div>
-              <div>
-                <div class="text-xs text-slate-500 mb-1">客户名称</div>
-                <el-input v-model="execFields.customer_name" />
-              </div>
-              <div v-if="chosen.intent==='create' && chosen.entity==='customer'">
-                <div class="text-xs text-slate-500 mb-1">客户代号</div>
-                <div class="flex gap-2">
-                  <el-input v-model="execFields.customer_code" placeholder="例如：CUST-20251212-ABCD" />
-                  <el-button type="primary" link @click="genCustomerCode">生成</el-button>
-                </div>
-              </div>
-              <div v-if="execFields.customer_name && chosen.entity!=='customer'">
-                 <div class="text-xs text-slate-500 mb-1">客户ID（自动匹配）</div>
-                 <el-input v-model="execFields.customer" disabled />
-              </div>
-              <div>
-                <div class="text-xs text-slate-500 mb-1">销售经理（ID）</div>
-                <div class="flex gap-2">
-                  <el-input v-model="execFields.sales_manager" placeholder="留空默认当前用户" class="w-24" />
-                  <el-input v-model="execFields.sales_manager_name" placeholder="销售姓名" readonly />
-                </div>
-              </div>
-              <div>
-                <div class="text-xs text-slate-500 mb-1">金额（数字）</div>
-                <el-input v-model="execFields.amount" />
-              </div>
-              <div>
-                <div class="text-xs text-slate-500 mb-1">预计签约日期（可选）</div>
-                <el-date-picker v-model="execFields.expected_sign_date" type="date" />
-              </div>
-              <div>
-                <div class="text-xs text-slate-500 mb-1">阶段</div>
-                <el-select v-model="execFields.stage">
-                  <el-option label="初次接触" value="CONTACT" />
-                  <el-option label="演示交流" value="DEMO" />
-                  <el-option label="方案提交" value="PROPOSAL" />
-                  <el-option label="商务谈判" value="NEGOTIATION" />
-                  <el-option label="临门一脚" value="CLOSING" />
-                </el-select>
-              </div>
-              <div>
-                <div class="text-xs text-slate-500 mb-1">状态</div>
-                <el-select v-model="execFields.status">
-                  <el-option label="进行中" value="ACTIVE" />
-                  <el-option label="潜在" value="POTENTIAL" />
-                  <el-option label="已赢单" value="WON" />
-                  <el-option label="已输单" value="LOST" />
-                </el-select>
-              </div>
-              <div class="md:col-span-2">
-                <div class="text-xs text-slate-500 mb-1">描述（可选）</div>
-                <el-input v-model="execFields.description" type="textarea" :rows="3" />
-              </div>
-            </div>
-            <div v-else class="text-xs text-slate-500">暂不支持该动作的可视化表单，您可直接执行或切换卡片。</div>
-          </div>
-        </el-card>
       </div>
     </main>
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import api from '../../api';
 import { ElMessage } from 'element-plus';
 
-const tab = ref('approvals');
+const tab = ref('agent');
 const loading = ref(false);
 
 // 审批
@@ -554,29 +653,58 @@ const agentConfigId = ref<string>('');
 const showRaw = ref(false);
 const aiConfigs = ref<any[]>([]);
 function cLabel(c:any){ return `${c.name} · ${c.model_name}${c.is_active ? '（默认）' : ''}`; }
+
+// AI配置加载：修复空列表和错误处理
 async function loadAIConfigs(){
   try{
-    const res = await api.get('ai/configs/');
-    aiConfigs.value = res.data.results || [];
-    if (!agentConfigId.value && aiConfigs.value.length){
-      const active = aiConfigs.value.find((c:any)=>c.is_active);
-      agentConfigId.value = String((active || aiConfigs.value[0]).id);
+    let res = await api.get('ai/configs/');
+    let results = res.data.results || res.data || [];
+    
+    // Fallback to admin endpoint if empty (in case of permission/url issues)
+    if (!results.length) {
+        try {
+            res = await api.get('admin/ai-configs/');
+            results = res.data.results || res.data || [];
+        } catch (e) { /* ignore fallback error */ }
     }
-  }catch(e){ /* 忽略 */ }
+
+    aiConfigs.value = results;
+    
+    if (aiConfigs.value.length > 0){
+        // 如果有配置，优先选中已激活的，否则选第一个
+        const active = aiConfigs.value.find((c:any)=>c.is_active);
+        agentConfigId.value = String((active || aiConfigs.value[0]).id);
+    } else {
+        // 无配置时，保持空
+        agentConfigId.value = '';
+    }
+  }catch(e){ 
+      console.error('Failed to load AI configs', e);
+  }
 }
 onMounted(loadAIConfigs);
+
 async function testAI(){
+  // Auto-select first if not selected but available
+  if (!agentConfigId.value && aiConfigs.value.length > 0) {
+      agentConfigId.value = String(aiConfigs.value[0].id);
+  }
+
+  if (!agentConfigId.value) {
+    ElMessage.warning('请先选择一个AI模型配置');
+    return;
+  }
   loading.value = true;
   try{
     const params:any = {};
     if (agentConfigId.value) params.config_id = agentConfigId.value;
-    const res = await api.get('ai/test-connection/', { params });
+    const res = await api.post('ai/test-connection/', params);
     const r = res.data || {};
-    ElMessage.success(`连接成功：${r.provider} · ${r.model}`);
+    ElMessage.success(`连接成功：${r.provider === 'OPENAI' ? 'OpenAI' : r.provider} · ${r.model || '默认模型'}`);
     showRaw.value = true;
     agentResult.value = r;
   }catch(e:any){
-    const msg = (e.response && e.response.data && (e.response.data.error || e.response.data.detail)) ? (e.response.data.error || e.response.data.detail) : '连接失败';
+    const msg = (e.response && e.response.data && (e.response.data.error || e.response.data.detail || e.response.data.message)) ? (e.response.data.error || e.response.data.detail || e.response.data.message) : '连接失败';
     ElMessage.error(typeof msg==='string'?msg:JSON.stringify(msg));
   } finally { loading.value = false; }
 }
@@ -586,12 +714,23 @@ function needsForm(a:any){
   return true;
 }
 const execFields = ref<any>({});
+const execFieldsJson = ref('');
 const refineText = ref('');
+
+function syncJsonToFields(){
+    try {
+        execFields.value = JSON.parse(execFieldsJson.value);
+    } catch(e) { /* ignore */ }
+}
+watch(execFields, (val) => {
+    execFieldsJson.value = JSON.stringify(val, null, 2);
+}, { deep: true });
+
 async function analyzeAgent(){
   if (!agentText.value){ ElMessage.warning('请输入需求'); return; }
   loading.value = true;
   try{
-    const payload:any = { text: agentText.value };
+    const payload:any = { task: agentText.value };
     if (agentConfigId.value) payload.config_id = agentConfigId.value;
     const res = await api.post('agent/route/', payload);
     const data = res.data || {};
@@ -690,17 +829,25 @@ function chooseAlternative(alt:any){
   chosen.value = { intent: alt.intent, entity: alt.entity, fields: alt.fields || {}, filters: alt.filters || {} };
 }
 async function autoRefineCustomer(text:string){
-   const mName = text.match(/客户名称[:：]\s*([^\s，,]+)/) || text.match(/新建客户[，,]\s*([^\s，,]{2,40})/);
+   // 增强正则：支持 "客户名称: XX" 或 "新建客户 XX" 或 "创建客户 XX" 或 "创建一个客户 XX"
+   // 排除 。 ; ； 等标点
+   const mName = text.match(/客户名称[:：]\s*([^\s，,。;；]+)/) || 
+                 text.match(/(?:新建|创建)(?:一个|一项)?客户[，, ]\s*([^\s，,。;；]{2,40})/) ||
+                 text.match(/客户[，, ]\s*([^\s，,。;；]{2,40})/);
    if (mName) execFields.value.name = mName[1];
-   const mInd = text.match(/行业[:：]\s*([^\s，,]+)/);
+
+   const mInd = text.match(/行业[:：]\s*([^\s，,。;；]+)/) || text.match(/([^\s，,。;；]+)行业/);
    if (mInd) execFields.value.industry = mInd[1];
-   const mReg = text.match(/区域[:：]\s*([^\s，,]+)/) || text.match(/在([^\s，,]{1,10})/);
+
+   const mReg = text.match(/(?:区域|地点)[:：]\s*([^\s，,。;；]+)/) || 
+                text.match(/在([^\s，,。;；]{1,10})/) ||
+                text.match(/地点\s*([^\s，,。;；]{1,10})/);
    if (mReg) execFields.value.region = mReg[1];
 }
 async function autoRefineActivity(text:string){
    const mName = text.match(/活动名称[:：]\s*([^\s，,]+)/) || text.match(/新建(?:一个|一项)?([^\s，,]{2,40})/);
    if (mName) execFields.value.name = mName[1];
-   const mLoc = text.match(/地点[:：]\s*([^\s，,]+)/) || text.match(/在([^\s，,]{1,10})/);
+   const mLoc = text.match(/(?:地点|在)[:：]\s*([^\s，,]+)/) || text.match(/在([^\s，,]{1,10})/);
    if (mLoc) execFields.value.location = mLoc[1];
    const mType = text.match(/类型[:：]\s*([^\s，,]+)/);
    if (mType) execFields.value.type = mType[1];
@@ -874,13 +1021,39 @@ async function executeChosenWithFields(){
   if (!chosen.value.intent || !chosen.value.entity){ ElMessage.warning('请选择动作'); return; }
   loading.value = true;
   try{
-    const payload = { intent: chosen.value.intent, entity: chosen.value.entity, fields: normalizeFields(chosen.value.entity, execFields.value || {}), filters: chosen.value.filters || {}, text: agentText.value || '' };
+    const fields = normalizeFields(chosen.value.entity, execFields.value || {});
+    // 如果是创建操作，直接调用对应实体的创建API，确保数据保存
+    if (chosen.value.intent === 'create') {
+        let url = '';
+        if (chosen.value.entity === 'customer') url = 'customers/';
+        else if (chosen.value.entity === 'opportunity') url = 'opportunities/';
+        else if (chosen.value.entity === 'competition') url = 'competitions/';
+        else if (chosen.value.entity === 'activity') url = 'activities/';
+        
+        if (url) {
+            const res = await api.post(url, fields);
+            agentResult.value = res.data;
+            ElMessage.success('已保存到系统');
+            // 清空表单或重置状态? 暂不重置，方便用户继续操作
+            loading.value = false;
+            return;
+        }
+    }
+
+    // 默认走 Chat/Agent 路由
+    const payload = { 
+      intent: chosen.value.intent, 
+      entity: chosen.value.entity, 
+      fields: fields, 
+      filters: chosen.value.filters || {}, 
+      text: agentText.value || '',
+      message: agentText.value || '执行操作'
+    };
     const res = await api.post('chat/', payload);
     agentResult.value = res.data;
     ElMessage.success('执行完成');
-  }catch(e){ 
+  }catch(e:any){ 
     console.error(e); 
-    // @ts-ignore
     const msg = (e.response && e.response.data && (e.response.data.error || e.response.data.detail)) ? JSON.stringify(e.response.data.error || e.response.data.detail) : '执行失败';
     ElMessage.error(typeof msg==='string'?msg:JSON.stringify(msg));
   } finally { loading.value = false; }
@@ -910,7 +1083,7 @@ function normalizeFields(entity:string, fields:any){
     }
     }catch(_e){ return v; }
     return v;
-};
+  };
   // competition/activity/opportunity日期字段
   f.time = toDate(f.time);
   f.end_time = toDate(f.end_time);
@@ -932,15 +1105,37 @@ async function genCustomerCode(){
   }
 }
 
+const statusMap: Record<string,string> = {
+  'POTENTIAL': '潜在', 'ACTIVE': '合作中', 'KEY': '重点', 'CHURNED': '流失',
+  'PENDING': '待确认', 'APPROVED': '已通过', 'REJECTED': '已驳回',
+  'INITIAL': '初步接触', 'QUALIFICATION': '需求分析', 'PROPOSAL': '方案制定', 'NEGOTIATION': '商务谈判', 'CLOSED_WON': '赢单', 'CLOSED_LOST': '输单',
+  'DRAFT': '草稿',
+  'National': '国家级', 'Province': '省级', 'City': '市级',
+  'Group': '集团', 'School': '学校', 'Gov': '政府/协会',
+  'CTF': '夺旗赛', 'AWD': '攻防赛', '攻防演练': '攻防演练'
+};
+
+function formatStatus(val: string) {
+    return statusMap[val] || val;
+}
+
 function humanLabel(a:any){
   if (!a) return '';
   const intentMap: Record<string,string> = { list:'查看', get:'查看详情', create:'新建', update:'更新', approve:'审批通过', reject:'审批驳回' };
   const entityMap: Record<string,string> = { approvals:'审批', customer:'客户', activity:'活动', competition:'赛事', opportunity:'商机' };
+  
   const intentLabel = intentMap[a.intent] || a.intent;
   const entityLabel = entityMap[a.entity] || a.entity;
   // status hint
   const status = a.filters?.status || a.fields?.status;
-  const statusLabel = status ? `（${Array.isArray(status)?status.join('/') : status}）` : '';
+  let statusLabel = '';
+  if (status) {
+      if (Array.isArray(status)) {
+          statusLabel = `（${status.map(s => statusMap[s] || s).join('/')}）`;
+      } else {
+          statusLabel = `（${statusMap[status] || status}）`;
+      }
+  }
   return `${intentLabel} · ${entityLabel}${statusLabel}`;
 }
 function humanDesc(a:any){
@@ -967,10 +1162,11 @@ async function executeChosen(){
 
   loading.value = true;
   try{
-    const res = await api.post('chat/', chosen.value);
+    const payload = { ...chosen.value, message: agentText.value || '执行操作' }; // FIX: Add message
+    const res = await api.post('chat/', payload);
     agentResult.value = res.data;
     ElMessage.success('执行完成');
-  }catch(e){ console.error(e); ElMessage.error('执行失败'); } finally { loading.value = false; }
+  }catch(e:any){ console.error(e); ElMessage.error('执行失败'); } finally { loading.value = false; }
 }
 
 // 日报助手
@@ -1010,27 +1206,34 @@ async function saveGeneratedReport() {
   if (!dailyReportResult.value) return;
   loading.value = true;
   try {
-    // 关键修复：将 AI 生成的内容 (dailyReportResult.value.content) 同时保存到 raw_content 
-    // 这样在工作日报板块编辑时，看到的就是 AI 生成后的结果，而不是原始输入的简略内容
-    const payload = {
-      date: dailyReportResult.value.date,
+    // Save as daily report
+    await api.post('daily-reports/', {
       title: dailyReportResult.value.title,
-      raw_content: dailyReportResult.value.content, // 这里改为保存 AI 润色后的内容
-      polished_content: '', // 清空润色内容，让系统默认显示 raw_content
-      status: 'SUBMITTED'
-    };
-    // 这里调用 DailyReportViewSet 的 create 接口
-    // 注意：后端 create 方法里有 upsert 逻辑，所以如果是同一天会更新
-    await api.post('daily-reports/', payload);
-    ElMessage.success('保存成功，已同步至工作日报');
-    // 清空
-    dailyReportInput.value = '';
-    dailyReportResult.value = null;
-  } catch (e: any) {
-    console.error(e);
+      content: dailyReportResult.value.content,
+      report_date: dailyReportResult.value.date,
+      type: 'DAILY'
+    });
+    ElMessage.success('保存成功');
+  } catch (e) {
     ElMessage.error('保存失败');
   } finally {
     loading.value = false;
   }
 }
 </script>
+<style scoped>
+.custom-tabs :deep(.el-tabs__header) {
+  margin-bottom: 20px;
+}
+.custom-tabs :deep(.el-tabs__content) {
+  height: calc(100% - 60px);
+  overflow: hidden;
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>

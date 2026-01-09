@@ -294,14 +294,24 @@ class OpportunityViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
+        print(f"DEBUG: OpportunityViewSet.create data: {request.data}")
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            return Response({'error': '字段校验失败', 'detail': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            print(f"DEBUG: Validation Error: {serializer.errors}")
+            return Response({'error': f'字段校验失败: {serializer.errors}', 'detail': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         try:
             # Default creator and sales_manager to current user if not provided
             extra_data = {'creator': self.request.user}
-            if 'sales_manager' not in request.data:
-                extra_data['sales_manager'] = self.request.user
+            
+            # Check if sales_manager is in validated_data (it might have been processed by to_internal_value)
+            # Or if it was popped but not set.
+            # logic: if 'sales_manager' is missing in validated_data, we should provide a default.
+            # But we can't easily check validated_data here before saving? 
+            # actually serializer.validated_data is available after is_valid()
+            
+            if 'sales_manager' not in serializer.validated_data:
+                 extra_data['sales_manager'] = self.request.user
+
             opp = serializer.save(**extra_data)
             OpportunityLog.objects.create(
                 opportunity=opp,
@@ -1122,7 +1132,7 @@ class AIConfigsListView(APIView):
         ).order_by('-is_active', '-created_at')
         
         serializer = AIConfigurationSerializer(configs, many=True)
-        return Response(serializer.data)
+        return Response({'results': serializer.data})
 
 class AIConnectionTestView(APIView):
     """
@@ -1133,13 +1143,13 @@ class AIConnectionTestView(APIView):
     def post(self, request):
         config_id = request.data.get('config_id')
         if not config_id:
-            return Response({'error': 'Config ID is required'}, status=400)
+            return Response({'error': '请提供配置ID'}, status=400)
             
         try:
             service = AIService(config_id=config_id)
             # A simple hello test
-            response = service._call_llm("Say 'OK' if you are connected.")
-            if 'OK' in response.upper():
+            response = service._call_llm("You are a helpful assistant.", "Please reply with a valid json object: {\"status\": \"OK\"}")
+            if 'OK' in response.upper() or 'JSON' in response.upper():
                 return Response({'status': 'success', 'message': '连接成功'})
             else:
                 return Response({'status': 'warning', 'message': f'连接成功但响应异常: {response}'})
@@ -1158,12 +1168,12 @@ class ChatView(APIView):
         config_id = request.data.get('config_id')
         
         if not message:
-            return Response({'error': 'Message is required'}, status=400)
+            return Response({'error': '请输入消息'}, status=400)
             
         service = AIService(config_id=config_id)
         try:
             # Simple wrapper for chat
-            response = service._call_llm(message, history=history)
+            response = service._call_llm("You are a helpful assistant.", message, history=history)
             return Response({'reply': response})
         except Exception as e:
             return Response({'error': str(e)}, status=500)
@@ -1355,11 +1365,73 @@ class AgentRouterView(APIView):
 
     def post(self, request):
         task = request.data.get('task')
+        config_id = request.data.get('config_id')
         if not task:
             return Response({'error': 'Task description is required'}, status=400)
             
-        # Agent Logic: parse task -> execute via tool or call LLM
-        return Response({'status': 'processing', 'message': 'Agent task received'})
+        service = AIService(config_id=config_id)
+        user = request.user
+        
+        print(f"--- [AgentRouter] Processing Task: {task} ---")
+        
+        # 1. Analyze Intent
+        try:
+            task_analysis = service.parse_task(task, user=user)
+            intent_raw = task_analysis.get('intent', 'other')
+            print(f"--- [AgentRouter] Intent Analysis Result: {task_analysis} ---")
+        except Exception as e:
+            print(f"--- [AgentRouter] Intent Analysis Failed: {e} ---")
+            intent_raw = 'other'
+        
+        response_data = {
+            'intent': '',
+            'entity': '',
+            'fields': {},
+            'filters': {},
+            'alternatives': [],
+            'warnings': []
+        }
+        
+        # Map intents
+        if intent_raw == 'create_customer':
+            response_data['intent'] = 'create'
+            response_data['entity'] = 'customer'
+            response_data['fields'] = service.parse_customer(task, user=user)
+            
+        elif intent_raw == 'create_opportunity':
+            response_data['intent'] = 'create'
+            response_data['entity'] = 'opportunity'
+            response_data['fields'] = service.parse_opportunity(task, user=user)
+            
+        elif intent_raw == 'create_todo':
+            response_data['intent'] = 'create'
+            response_data['entity'] = 'todo'
+            response_data['fields'] = service.parse_todo_task(task, user=user)
+        
+        # Fallback/Extended Logic for Competition and Activity
+        if not response_data['intent']:
+            print("--- [AgentRouter] Using Fallback Regex Logic ---")
+            import re
+            if re.search(r'(?:新建|创建|新增|录入).*(?:赛事|比赛)', task):
+                 response_data['intent'] = 'create'
+                 response_data['entity'] = 'competition'
+                 response_data['fields'] = service.parse_competition(task, user=user)
+            elif re.search(r'(?:新建|创建|新增|录入).*(?:活动)', task):
+                 response_data['intent'] = 'create'
+                 response_data['entity'] = 'activity'
+                 response_data['fields'] = service.parse_market_activity(task, user=user)
+            # Fallback for customer if parse_task failed but regex matches
+            elif re.search(r'(?:新建|创建|新增|录入).*(?:客户|公司|企业)', task):
+                 response_data['intent'] = 'create'
+                 response_data['entity'] = 'customer'
+                 response_data['fields'] = service.parse_customer(task, user=user)
+            elif re.search(r'(?:新建|创建|新增|录入).*(?:商机|机会)', task):
+                 response_data['intent'] = 'create'
+                 response_data['entity'] = 'opportunity'
+                 response_data['fields'] = service.parse_opportunity(task, user=user)
+
+        print(f"--- [AgentRouter] Final Response: {response_data} ---")
+        return Response(response_data)
 
 class SubmissionLogViewSet(viewsets.ModelViewSet):
     queryset = SubmissionLog.objects.all().order_by('-created_at')
@@ -1498,8 +1570,9 @@ class AIConfigurationViewSet(viewsets.ModelViewSet):
         print(f"Provider: {config.provider}, BaseURL: {config.base_url}, Model: {config.model_name}")
         
         service = AIService(config_id=config.id)
-        test_prompt = "Say 'OK' if you can hear me."
-        test_text = "Hello AI"
+        # Fix: Must include "json" in prompt for response_format='json_object'
+        test_prompt = "You are a testing assistant. Please respond in JSON format."
+        test_text = "Return a JSON object with key 'status' set to 'OK' if you can hear me."
         
         try:
             # 这里的 _call_llm_json 会处理不同 Provider 的逻辑
@@ -2062,3 +2135,11 @@ class SeedTargetsView(APIView):
     permission_classes = [permissions.IsAdminUser]
     def post(self, request):
         return Response({'status': 'success', 'message': 'Seed targets generated'})
+
+from .models import SystemRelease
+from .serializers import SystemReleaseSerializer
+
+class SystemReleaseViewSet(viewsets.ModelViewSet):
+    queryset = SystemRelease.objects.all().order_by('-release_date')
+    serializer_class = SystemReleaseSerializer
+    permission_classes = [permissions.IsAuthenticated]

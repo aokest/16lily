@@ -17,11 +17,8 @@
     <main class="flex-1 p-6 overflow-auto">
       <div class="bg-white rounded-lg shadow p-8 max-w-3xl mx-auto">
         <el-form :model="form" label-width="120px" ref="formRef" :rules="rules">
-          <el-form-item label="客户ID">
-            <el-input-number v-model="form.customer" :min="1" />
-          </el-form-item>
           <el-form-item label="客户" prop="customer">
-            <el-select v-model="form.customer" filterable remote reserve-keyword :remote-method="searchCustomers" :loading="custLoading" placeholder="选择客户" style="width: 100%">
+            <el-select v-model="form.customer" filterable remote reserve-keyword :remote-method="searchCustomers" :loading="custLoading" placeholder="请输入客户名称或代码搜索" style="width: 100%">
               <el-option v-for="c in customerOptions" :key="c.value" :label="c.label" :value="c.value" />
             </el-select>
           </el-form-item>
